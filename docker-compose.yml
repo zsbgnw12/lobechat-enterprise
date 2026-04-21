@@ -1,0 +1,117 @@
+services:
+  db:
+    image: pgvector/pgvector:pg16
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-eg}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-eg_pw}
+      POSTGRES_DB: ${POSTGRES_DB:-enterprise_gateway}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./db-init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-eg} -d ${POSTGRES_DB:-enterprise_gateway}"]
+      interval: 3s
+      timeout: 3s
+      retries: 30
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: ["redis-server", "--save", "", "--appendonly", "no"]
+    # No host port exposure: reachable only on the compose network as "redis".
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 3s
+      timeout: 3s
+      retries: 30
+
+  gateway:
+    build:
+      context: ./gateway
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-eg}:${POSTGRES_PASSWORD:-eg_pw}@db:5432/${POSTGRES_DB:-enterprise_gateway}?schema=public
+      REDIS_URL: redis://redis:6379
+      CASDOOR_CLIENT_ID: ${AUTH_CASDOOR_ID:-}
+      CASDOOR_ROLE_MAP: ${CASDOOR_ROLE_MAP:-}
+      API_PORT: ${GATEWAY_PORT:-3001}
+      MOCK_MODE: ${MOCK_MODE:-true}
+      AUTH_MODE: ${AUTH_MODE:-dev}
+      NODE_ENV: ${GATEWAY_NODE_ENV:-development}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      GONGDAN_API_URL: ${GONGDAN_API_URL:-}
+      GONGDAN_API_KEY: ${GONGDAN_API_KEY:-}
+      SUPER_OPS_API_URL: ${SUPER_OPS_API_URL:-}
+      SUPER_OPS_API_KEY: ${SUPER_OPS_API_KEY:-}
+      CLOUDCOST_API_URL: ${CLOUDCOST_API_URL:-}
+      CLOUDCOST_BEARER: ${CLOUDCOST_BEARER:-}
+      CLOUDCOST_MOCK: ${CLOUDCOST_MOCK:-}
+      CLOUDCOST_M2M_CLIENT_ID: ${CLOUDCOST_M2M_CLIENT_ID:-}
+      CLOUDCOST_M2M_CLIENT_SECRET: ${CLOUDCOST_M2M_CLIENT_SECRET:-}
+      CLOUDCOST_M2M_SCOPE: ${CLOUDCOST_M2M_SCOPE:-}
+      KB_AGENT_URL: ${KB_AGENT_URL:-}
+      KB_API_KEY: ${KB_API_KEY:-}
+      AI_SEARCH_URL: ${AI_SEARCH_URL:-}
+      AI_SEARCH_KEY: ${AI_SEARCH_KEY:-}
+      SANDBOX_URL: ${SANDBOX_URL:-}
+      SANDBOX_KEY: ${SANDBOX_KEY:-}
+      DOC_AGENT_URL: ${DOC_AGENT_URL:-}
+      DOC_AGENT_KEY: ${DOC_AGENT_KEY:-}
+      CASDOOR_URL: ${AUTH_CASDOOR_ISSUER:-}
+      CORS_ORIGINS: ${GATEWAY_CORS_ORIGINS:-http://localhost:3010}
+      ALLOW_DATA_LOSS: ${ALLOW_DATA_LOSS:-false}
+      TOKEN_ENCRYPTION_KEY: ${TOKEN_ENCRYPTION_KEY:-}
+      ADMIN_CSRF_SECRET: ${ADMIN_CSRF_SECRET:-}
+      METRICS_TOKEN: ${METRICS_TOKEN:-}
+    ports:
+      - "${GATEWAY_PORT:-3001}:3001"
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:3001/health"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+      start_period: 20s
+
+  lobechat:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+      gateway:
+        condition: service_healthy
+    environment:
+      # Server-mode (DB) wiring
+      DATABASE_URL: postgresql://${POSTGRES_USER:-eg}:${POSTGRES_PASSWORD:-eg_pw}@db:5432/${LOBE_DB_NAME:-lobechat}
+      KEY_VAULTS_SECRET: ${KEY_VAULTS_SECRET:-replace_me_with_openssl_rand_base64_32}
+      AUTH_SECRET: ${AUTH_SECRET:-replace_me_with_openssl_rand_base64_32}
+      APP_URL: ${APP_URL:-http://localhost:3010}
+      # SSO via Casdoor (fill in .env before first real login)
+      AUTH_CASDOOR_ID: ${AUTH_CASDOOR_ID:-replace_me}
+      AUTH_CASDOOR_SECRET: ${AUTH_CASDOOR_SECRET:-replace_me}
+      AUTH_CASDOOR_ISSUER: ${AUTH_CASDOOR_ISSUER:-http://casdoor.ashyglacier-8207efd2.eastasia.azurecontainerapps.io}
+      # Internal gateway URL so server-side code can call enterprise tools
+      GATEWAY_INTERNAL_URL: ${GATEWAY_INTERNAL_URL:-http://gateway:3001}
+      # Model provider keys (user fills in .env)
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      GOOGLE_API_KEY: ${GOOGLE_API_KEY:-}
+      # Feature-flag trim: disable non-enterprise UI entry points.
+      # "-name" turns a flag OFF; see src/config/featureFlags/schema.ts for the full list.
+      FEATURE_FLAGS: ${FEATURE_FLAGS:--market,-check_updates,-welcome_suggest,-cloud_promotion,-changelog,-agent_onboarding,+commercial_hide_github,+commercial_hide_docs}
+    ports:
+      - "${WEB_PORT:-3010}:3210"
+
+volumes:
+  pgdata:

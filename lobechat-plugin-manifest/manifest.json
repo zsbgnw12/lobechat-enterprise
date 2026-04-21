@@ -1,0 +1,67 @@
+{
+  "$schema": "https://chat-plugins.lobehub.com/schema/plugin.json",
+  "api": [
+    {
+      "url": "http://gateway:3001/api/tools/call",
+      "name": "kb_search",
+      "description": "Search the enterprise knowledge base. Returns ranked document snippets scoped by the caller's data-scope and masked per role.",
+      "parameters": {
+        "type": "object",
+        "required": ["query"],
+        "properties": {
+          "query": { "type": "string", "description": "Natural-language query" },
+          "top_k": { "type": "integer", "default": 5 }
+        }
+      }
+    },
+    {
+      "url": "http://gateway:3001/api/tools/call",
+      "name": "ai_search_web",
+      "description": "Perform an external web search through the enterprise AI search adapter.",
+      "parameters": {
+        "type": "object",
+        "required": ["query"],
+        "properties": {
+          "query": { "type": "string" },
+          "num": { "type": "integer", "default": 10 }
+        }
+      }
+    },
+    {
+      "url": "http://gateway:3001/api/tools/call",
+      "name": "gongdan_create_ticket",
+      "description": "Create a support/工单 ticket on behalf of the caller. Subject to role and identity-map enforcement.",
+      "parameters": {
+        "type": "object",
+        "required": ["title", "description"],
+        "properties": {
+          "title": { "type": "string" },
+          "description": { "type": "string" },
+          "priority": { "type": "string", "enum": ["low", "normal", "high", "urgent"] },
+          "customer_id": { "type": "string" }
+        }
+      }
+    },
+    {
+      "url": "http://gateway:3001/api/tools/call",
+      "name": "xiaoshou_search_customers",
+      "description": "Search sales (xiaoshou) customer records. Results are filtered to the caller's data scope (e.g. internal_sales sees only their own accounts).",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "keyword": { "type": "string" },
+          "limit": { "type": "integer", "default": 20 }
+        }
+      }
+    }
+  ],
+  "identifier": "enterprise-gateway",
+  "meta": {
+    "avatar": "🏢",
+    "tags": ["enterprise", "gateway", "tickets", "knowledge-base", "crm"],
+    "title": "Enterprise Gateway",
+    "description": "Bridge to the internal Enterprise Gateway. Exposes permission-enforced, data-scoped, field-masked tools for the knowledge base, AI search, ticketing (工单), and sales CRM."
+  },
+  "version": "1",
+  "systemRole": "Before calling any enterprise-gateway tool, prefer kb_search for internal knowledge questions and gongdan_create_ticket for reporting user-facing problems. These calls go through a permission gateway that will return 403 if the user is not authorized."
+}

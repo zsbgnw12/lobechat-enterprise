@@ -1,0 +1,354 @@
+{
+  "version": "1.0.0",
+  "lastScanned": 1776679333580,
+  "projectRoot": "/Users/gongzhiyong/go/lobechat",
+  "techStack": {
+    "languages": [],
+    "frameworks": [],
+    "packageManager": null,
+    "runtime": null
+  },
+  "build": {
+    "buildCommand": null,
+    "testCommand": null,
+    "lintCommand": null,
+    "devCommand": null,
+    "scripts": {}
+  },
+  "conventions": {
+    "namingStyle": null,
+    "importStyle": null,
+    "testPattern": null,
+    "fileOrganization": null
+  },
+  "structure": {
+    "isMonorepo": false,
+    "workspaces": [],
+    "mainDirectories": [],
+    "gitBranches": null
+  },
+  "customNotes": [],
+  "directoryMap": {
+    "apps": {
+      "path": "apps",
+      "purpose": null,
+      "fileCount": 0,
+      "lastAccessed": 1776679333556,
+      "keyFiles": []
+    },
+    "apps/api": {
+      "path": "apps/api",
+      "purpose": "API routes",
+      "fileCount": 4,
+      "lastAccessed": 1776679333557,
+      "keyFiles": [
+        "Dockerfile",
+        "docker-entrypoint.sh",
+        "package.json"
+      ]
+    }
+  },
+  "hotPaths": [
+    {
+      "path": "gateway/scripts/acceptance.sh",
+      "accessCount": 35,
+      "lastAccessed": 1776746745293,
+      "type": "file"
+    },
+    {
+      "path": "gateway/src/server.ts",
+      "accessCount": 24,
+      "lastAccessed": 1776746523169,
+      "type": "file"
+    },
+    {
+      "path": "src",
+      "accessCount": 20,
+      "lastAccessed": 1776746567860,
+      "type": "directory"
+    },
+    {
+      "path": "gateway/src/core/gateway.ts",
+      "accessCount": 19,
+      "lastAccessed": 1776690611538,
+      "type": "file"
+    },
+    {
+      "path": "gateway/src/env.ts",
+      "accessCount": 17,
+      "lastAccessed": 1776746557069,
+      "type": "file"
+    },
+    {
+      "path": "",
+      "accessCount": 15,
+      "lastAccessed": 1776746558851,
+      "type": "directory"
+    },
+    {
+      "path": "docker-compose.yml",
+      "accessCount": 14,
+      "lastAccessed": 1776747021059,
+      "type": "file"
+    },
+    {
+      "path": "gateway/src/auth/middleware.ts",
+      "accessCount": 13,
+      "lastAccessed": 1776746524853,
+      "type": "file"
+    },
+    {
+      "path": "gateway/src/tools/gongdan.ts",
+      "accessCount": 12,
+      "lastAccessed": 1776746833156,
+      "type": "file"
+    },
+    {
+      "path": "gateway/src/core/capabilities.ts",
+      "accessCount": 9,
+      "lastAccessed": 1776690611653,
+      "type": "file"
+    },
+    {
+      "path": "gateway/src/tools/xiaoshou.ts",
+      "accessCount": 9,
+      "lastAccessed": 1776746540376,
+      "type": "file"
+    },
+    {
+      "path": "gateway/src/core/filter.ts",
+      "accessCount": 9,
+      "lastAccessed": 1776746584958,
+      "type": "file"
+    },
+    {
+      "path": "gateway/prisma/seed.ts",
+      "accessCount": 9,
+      "lastAccessed": 1776746639419,
+      "type": "file"
+    },
+    {
+      "path": "gateway/src/routes/admin/tools.ts",
+      "accessCount": 9,
+      "lastAccessed": 1776746645871,
+      "type": "file"
+    },
+    {
+      "path": "README.md",
+      "accessCount": 9,
+      "lastAccessed": 1776746769787,
+      "type": "file"
+    },
+    {
+      "path": ".env",
+      "accessCount": 9,
+      "lastAccessed": 1776747010786,
+      "type": "file"
+    },
+    {
+      "path": "gateway/src/routes/admin/identityMap.ts",
+      "accessCount": 8,
+      "lastAccessed": 1776687700868,
+      "type": "file"
+    },
+    {
+      "path": "gateway/package.json",
+      "accessCount": 8,
+      "lastAccessed": 1776690396624,
+      "type": "file"
+    },
+    {
+      "path": ".env.example",
+      "accessCount": 8,
+      "lastAccessed": 1776690439890,
+      "type": "file"
+    },
+    {
+      "path": ".env.pilot",
+      "accessCount": 8,
+      "lastAccessed": 1776745361390,
+      "type": "file"
+    },
+    {
+      "path": "gateway/src/tools/http.ts",
+      "accessCount": 8,
+      "lastAccessed": 1776746541908,
+      "type": "file"
+    },
+    {
+      "path": "gateway/src/routes/lobechatPlugin.ts",
+      "accessCount": 7,
+      "lastAccessed": 1776687652467,
+      "type": "file"
+    },
+    {
+      "path": "gateway/src/auth/devAuth.ts",
+      "accessCount": 7,
+      "lastAccessed": 1776746816210,
+      "type": "file"
+    },
+    {
+      "path": "gateway/src/routes/toolsCall.ts",
+      "accessCount": 6,
+      "lastAccessed": 1776687629171,
+      "type": "file"
+    },
+    {
+      "path": "gateway/src/tools/kb.ts",
+      "accessCount": 6,
+      "lastAccessed": 1776746617655,
+      "type": "file"
+    },
+    {
+      "path": "gateway/scripts/pilot-gongdan.sh",
+      "accessCount": 5,
+      "lastAccessed": 1776746550016,
+      "type": "file"
+    },
+    {
+      "path": "lobechat-plugin-manifest/README.md",
+      "accessCount": 4,
+      "lastAccessed": 1776682191665,
+      "type": "file"
+    },
+    {
+      "path": "Dockerfile",
+      "accessCount": 4,
+      "lastAccessed": 1776744699494,
+      "type": "directory"
+    },
+    {
+      "path": "gateway/src/tools/registry.ts",
+      "accessCount": 4,
+      "lastAccessed": 1776746541240,
+      "type": "file"
+    },
+    {
+      "path": "gateway/scripts/pilot-xiaoshou.sh",
+      "accessCount": 4,
+      "lastAccessed": 1776746685950,
+      "type": "file"
+    },
+    {
+      "path": "gateway/scripts/pilot-kb.sh",
+      "accessCount": 4,
+      "lastAccessed": 1776746704982,
+      "type": "file"
+    },
+    {
+      "path": "gateway/docker-entrypoint.sh",
+      "accessCount": 3,
+      "lastAccessed": 1776683085106,
+      "type": "file"
+    },
+    {
+      "path": "gateway/src/routes/capabilities.ts",
+      "accessCount": 3,
+      "lastAccessed": 1776684617954,
+      "type": "file"
+    },
+    {
+      "path": "gateway/src/auth/casdoor.ts",
+      "accessCount": 3,
+      "lastAccessed": 1776685054479,
+      "type": "file"
+    },
+    {
+      "path": "lobechat-plugin-manifest/manifest.json",
+      "accessCount": 3,
+      "lastAccessed": 1776685088301,
+      "type": "file"
+    },
+    {
+      "path": "gateway/src/core/audit.ts",
+      "accessCount": 3,
+      "lastAccessed": 1776687022651,
+      "type": "file"
+    },
+    {
+      "path": "gateway/prisma/schema.prisma",
+      "accessCount": 3,
+      "lastAccessed": 1776746530468,
+      "type": "file"
+    },
+    {
+      "path": "gateway/src/tools/index.ts",
+      "accessCount": 3,
+      "lastAccessed": 1776746541218,
+      "type": "file"
+    },
+    {
+      "path": "docker-compose/production/grafana/docker-compose.yml",
+      "accessCount": 2,
+      "lastAccessed": 1776681245580,
+      "type": "directory"
+    },
+    {
+      "path": "gateway/Dockerfile",
+      "accessCount": 2,
+      "lastAccessed": 1776684619369,
+      "type": "file"
+    },
+    {
+      "path": "docker-compose.gateway.yml",
+      "accessCount": 2,
+      "lastAccessed": 1776690209005,
+      "type": "file"
+    },
+    {
+      "path": ".env.example.gateway",
+      "accessCount": 1,
+      "lastAccessed": 1776681162418,
+      "type": "file"
+    },
+    {
+      "path": "README.gateway.md",
+      "accessCount": 1,
+      "lastAccessed": 1776681168593,
+      "type": "file"
+    },
+    {
+      "path": "src/envs/auth.ts",
+      "accessCount": 1,
+      "lastAccessed": 1776681182681,
+      "type": "directory"
+    },
+    {
+      "path": "src/libs/better-auth/sso/providers/casdoor.ts",
+      "accessCount": 1,
+      "lastAccessed": 1776681185251,
+      "type": "directory"
+    },
+    {
+      "path": "db-init/01-create-dbs.sql",
+      "accessCount": 1,
+      "lastAccessed": 1776681258116,
+      "type": "file"
+    },
+    {
+      "path": "src/config/featureFlags/schema.ts",
+      "accessCount": 1,
+      "lastAccessed": 1776681889494,
+      "type": "file"
+    },
+    {
+      "path": "src/config/featureFlags/index.ts",
+      "accessCount": 1,
+      "lastAccessed": 1776681939045,
+      "type": "file"
+    },
+    {
+      "path": "EXTERNAL_SERVICES.md",
+      "accessCount": 1,
+      "lastAccessed": 1776682641498,
+      "type": "file"
+    },
+    {
+      "path": "SUPER_OPS_API.md",
+      "accessCount": 1,
+      "lastAccessed": 1776682668270,
+      "type": "file"
+    }
+  ],
+  "userDirectives": []
+}
