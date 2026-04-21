@@ -34,7 +34,7 @@ const getBuiltinToolsOnly = (s: ToolStoreState): LobeToolMeta[] => {
   return s.builtinTools
     .filter((item) => !item.hidden)
     .map((t) => ({
-      author: 'LobeHub',
+      author: 'Enterprise AI',
       identifier: t.identifier,
       meta: t.manifest.meta,
       type: 'builtin' as const,
@@ -91,7 +91,7 @@ export const LobeHubList = memo<LobeHubListProps>(({ keywords }) => {
       items.push({ tool, type: 'builtin' });
     }
 
-    // Add LobeHub skills
+    // Add Enterprise AI Workspace skills
     if (isLobehubSkillEnabled) {
       for (const provider of LOBEHUB_SKILL_PROVIDERS) {
         items.push({ provider, type: 'lobehub' });

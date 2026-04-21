@@ -1,9 +1,16 @@
 import { FastifyInstance } from 'fastify';
 import { authenticate, requireRoles } from '../../auth/middleware';
 import { prisma } from '../../db';
-import { cache } from '../../core/cache';
-import { CAP_CACHE_PREFIX } from '../../core/capabilities';
 import { RATE_LIMIT_ADMIN_MUTATE } from '../../core/rateLimiter';
+
+// NOTE: role CRUD 本身不改变"某个用户现在能调哪些工具"的计算结果：
+//   - POST：新角色还没有任何 user / tool-permission 绑定，没人受影响
+//   - PUT：只改 name / description，能力矩阵不变
+//   - DELETE：前面已校验"有引用就 409"，走到删除说明无用户绑定
+// 所以这里不再做 capability cache 失效。真正影响能力的是：
+//   - user 绑定角色（admin/users.ts）
+//   - tool-permission 增删（admin/tools.ts）
+// 由这两个入口负责定点失效。
 
 export async function adminRolesRoutes(app: FastifyInstance) {
   const guard = { preHandler: [authenticate, requireRoles('super_admin', 'permission_admin')] };
@@ -27,7 +34,6 @@ export async function adminRolesRoutes(app: FastifyInstance) {
     const created = await prisma.enterpriseRole.create({
       data: { key: b.key, name: b.name, description: b.description ?? null },
     });
-    await cache.invalidate(CAP_CACHE_PREFIX);
     reply.code(201).send(created);
   });
 
@@ -47,7 +53,6 @@ export async function adminRolesRoutes(app: FastifyInstance) {
     }
     try {
       const updated = await prisma.enterpriseRole.update({ where: { id }, data });
-      await cache.invalidate(CAP_CACHE_PREFIX);
       return updated;
     } catch (e: any) {
       reply.code(404).send({ error: 'not_found', detail: `role ${id} not found` });
@@ -75,7 +80,6 @@ export async function adminRolesRoutes(app: FastifyInstance) {
       return;
     }
     await prisma.enterpriseRole.delete({ where: { id } });
-    await cache.invalidate(CAP_CACHE_PREFIX);
     return { ok: true };
   });
 }

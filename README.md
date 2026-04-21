@@ -14,7 +14,7 @@
 
 | 路径 | 作用 |
 |---|---|
-| `gateway/` | Fastify + Prisma + Postgres 实现的 **Enterprise Gateway**。16 工具、9 张企业表、capabilities + identity_map + data_scope + field_policies + audit 全链路。 |
+| `gateway/` | Fastify + Prisma + Postgres 实现的 **Enterprise Gateway**。17 工具（gongdan×7 + xiaoshou×4 + cloudcost×3 + kb + ai_search + sandbox + doc）、9 张企业表、capabilities + identity_map + data_scope + field_policies + audit 全链路。 |
 | `gateway/src/routes/admin/*` | 后台管理 API：users / roles / tools / data-scopes / identity-map / audit / tool-schemas |
 | `gateway/src/routes/admin/ui.ts` | 极简管理员 HTML UI（`/admin` + `/admin/login` 等 6 页，带 CSRF） |
 | `gateway/src/routes/lobechatPlugin.ts` | 动态 LobeChat plugin manifest + tool-gateway 桥接 |
@@ -159,7 +159,7 @@ dev 模式传头 `X-Dev-User: <username>` 即切换身份。
 ## 已实现（摘要）
 
 - Casdoor OIDC 代码 ready：dev 双路径 + JWKS Bearer 验证 + DB 角色 fallback + M2M client_credentials（AES-256-GCM 加密缓存到 Redis）
-- **16 工具** 全部注册；gongdan/kb/serper/daytona auth/doc 已跑过真 upstream
+- **17 工具** 全部注册；gongdan/kb/serper/daytona auth/doc 已跑过真 upstream
 - 管理后台：`/admin/*` 六页 + CSRF + dev 登录
 - 权限栈：deny-wins capability + identity_map 过滤 + data_scope DSL（白名单 + `$in`/`$contains`/`$regex`）+ field_policies（drop/mask/hash + 通配）+ BullMQ 异步审计（sync 兜底）
 - 速率限制：全局 300/min、tool 60/min、admin mutate 30/min

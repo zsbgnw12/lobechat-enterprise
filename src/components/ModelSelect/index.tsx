@@ -1,6 +1,6 @@
 import { type ChatModelCard } from '@lobechat/types';
 import { type IconAvatarProps } from '@lobehub/icons';
-import { LobeHub, ModelIcon, ProviderIcon } from '@lobehub/icons';
+import { ModelIcon, ProviderIcon } from '@lobehub/icons';
 import { type FlexboxProps } from '@lobehub/ui';
 import { Avatar, Flexbox, Icon, Tag, Text, Tooltip } from '@lobehub/ui';
 import { createStaticStyles, useResponsive } from 'antd-style';
@@ -348,9 +348,10 @@ export const ProviderItemRender = memo<ProviderItemRenderProps>(
             style={isMono ? { filter: 'grayscale(1)' } : {}}
             title={name}
           />
-        ) : provider === 'lobehub' ? (
-          <LobeHub.Morden size={size} />
         ) : (
+          // [enterprise-fork] upstream had a special-case <LobeHub.Morden />
+          // for provider==='lobehub'; we fall through to the generic icon so
+          // no LobeHub-branded logo is rendered in this enterprise build.
           <ProviderIcon provider={provider} size={size} type={type} />
         )}
         <Text ellipsis color={'inherit'}>

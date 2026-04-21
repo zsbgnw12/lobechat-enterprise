@@ -1,123 +1,148 @@
 # CLAUDE.md
 
-Guidelines for using Claude Code in this LobeHub repository.
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-## Tech Stack
+## What this repo actually is
 
-- Next.js 16 + React 19 + TypeScript
-- SPA inside Next.js with `react-router-dom`
-- `@lobehub/ui`, antd for components; antd-style for CSS-in-JS — **prefer `createStaticStyles` with `cssVar.*`** (zero-runtime); only fall back to `createStyles` + `token` when styles genuinely need runtime computation. See `.cursor/docs/createStaticStyles_migration_guide.md`.
-- react-i18next for i18n; zustand for state management
-- SWR for data fetching; TRPC for type-safe backend
-- Drizzle ORM with PostgreSQL; Vitest for testing
+This is **not** a plain LobeChat checkout. It is the **Enterprise AI Workspace** prototype:
 
-## Project Structure
+- **Upstream LobeChat source** (de-branded) as the chat UI — see `README.lobechat.md` for the original upstream README.
+- **`gateway/`** — a self-built **Enterprise Gateway** (Fastify + Prisma + Postgres + Redis + BullMQ). This is where permissions/identity/data-scope/field-masking/audit live. See `README.gateway.md`.
+- **`docker-compose.yml`** — orchestrates the whole stack (db, redis, gateway, lobechat).
 
-```plaintext
-lobehub/
-├── apps/desktop/           # Electron desktop app
-├── packages/               # Shared packages (@lobechat/*)
-│   ├── database/           # Database schemas, models, repositories
-│   ├── agent-runtime/      # Agent runtime
-│   └── ...
-├── src/
-│   ├── app/                # Next.js App Router (backend API + auth)
-│   │   ├── (backend)/     # API routes (trpc, webapi, etc.)
-│   │   ├── spa/            # SPA HTML template service
-│   │   └── [variants]/(auth)/  # Auth pages (SSR required)
-│   ├── routes/             # SPA page components (Vite)
-│   │   ├── (main)/         # Desktop pages
-│   │   ├── (mobile)/       # Mobile pages
-│   │   ├── (desktop)/      # Desktop-specific pages
-│   │   ├── onboarding/     # Onboarding pages
-│   │   └── share/          # Share pages
-│   ├── spa/                # SPA entry points and router config
-│   │   ├── entry.web.tsx   # Web entry
-│   │   ├── entry.mobile.tsx
-│   │   ├── entry.desktop.tsx
-│   │   └── router/         # React Router configuration
-│   ├── store/              # Zustand stores
-│   ├── services/           # Client services
-│   ├── server/             # Server services and routers
-│   └── ...
-└── e2e/                    # E2E tests (Cucumber + Playwright)
+It is a **local-only prototype**: not deployed, not pushed to cloud. All secrets live in local `.env` (gitignored).
+
+`README.md` is the authoritative diff against upstream LobeChat (new files, modified files, branding replacements). Read it before making changes that might collide with upstream.
+
+## Architecture at a glance
+
+```
+Browser :3010 ── LobeChat (Next.js) ──tool-bridge──▶ Gateway :3001 (Fastify)
+                        │                                   │
+                        ▼                                   ▼
+                    Postgres (pgvector, pg16)         Redis (cache + BullMQ)
+                        │                                   │
+                    two logical DBs:                   8 upstream adapters:
+                    lobechat + enterprise_gateway     gongdan, xiaoshou, cloudcost,
+                                                      kb, ai_search (Serper),
+                                                      sandbox (Daytona), doc agent
 ```
 
-## SPA Routes and Features
+Request flow through gateway (`gateway/src/core/gateway.ts` is the entry pipeline):
+1. **auth** — dev header `X-Dev-User` OR Casdoor JWKS Bearer OR M2M client_credentials
+2. **capabilities** — deny-wins RBAC from `enterprise_*` tables (cached in Redis, key `cap:v1:*`)
+3. **identity_map** — rewrite user → upstream identifier per tool
+4. **data_scope DSL** — whitelist + `$in` / `$contains` / `$regex` filters
+5. **tool adapter** — HTTP call to upstream (`gateway/src/tools/*`)
+6. **field_policies** — drop / mask / hash (supports wildcards)
+7. **audit** — BullMQ async, sync fallback; exposed at `/metrics`
 
-SPA-related code is grouped under `src/spa/` (entries + router) and `src/routes/` (page segments). We use a **roots vs features** split: route trees only hold page segments; business logic and UI live in features.
+Gateway layout:
+- `gateway/src/routes/admin/*` — admin API + `ui.ts` (6-page HTML admin UI with CSRF, mounted at `/admin`)
+- `gateway/src/routes/lobechatPlugin.ts` — dynamic LobeChat plugin manifest + tool bridge
+- `gateway/src/routes/metrics.ts` — Prometheus `/metrics` (super_admin or `Bearer METRICS_TOKEN`)
+- `gateway/src/core/` — `gateway | filter | masking | audit | capabilities | cache | auditQueue | metrics | rateLimiter | scopeDsl`
+- `gateway/src/auth/` — `devAuth | casdoor | casdoorM2M | middleware`
+- `gateway/prisma/schema.prisma` — 9 enterprise tables; `seed.ts` provides the dev users below
 
-- **`src/spa/`** – SPA entry points (`entry.web.tsx`, `entry.mobile.tsx`, `entry.desktop.tsx`) and React Router config (`router/`). Keeps router config next to entries to avoid confusion with `src/routes/`.
+## Common commands
 
-- **`src/routes/` (roots)**\
-  Only page-segment files: `_layout/index.tsx`, `index.tsx` (or `page.tsx`), and dynamic segments like `[id]/index.tsx`. Keep these **thin**: they should only import from `@/features/*` and compose layout/page, with no business logic or heavy UI.
-
-- **`src/features/`**\
-  Business components by **domain** (e.g. `Pages`, `PageEditor`, `Home`). Put layout chunks (sidebar, header, body), hooks, and domain-specific UI here. Each feature exposes an `index.ts` (or `index.tsx`) with clear exports.
-
-When adding or changing SPA routes:
-
-1. In `src/routes/`, add only the route segment files (layout + page) that delegate to features.
-2. Implement layout and page content under `src/features/<Domain>/` and export from there.
-3. In route files, use `import { X } from '@/features/<Domain>'` (or `import Y from '@/features/<Domain>/...'`). Do not add new `features/` folders inside `src/routes/`.
-4. **Register the desktop route tree in both configs:** `src/spa/router/desktopRouter.config.tsx` and `src/spa/router/desktopRouter.config.desktop.tsx` must stay in sync (same paths and nesting). Updating only one can cause **blank screens** if the other build path expects the route.
-
-See the **spa-routes** skill (`.agents/skills/spa-routes/SKILL.md`) for the full convention and file-division rules.
-
-## Development
-
-### Starting the Dev Environment
+### Full stack (Docker, the normal way to run this repo)
 
 ```bash
-# SPA dev mode (frontend only, proxies API to localhost:3010)
-bun run dev:spa
+cp .env.example .env                              # if missing
+docker compose build --build-arg USE_CN_MIRROR=true   # first build ~20 min
+docker compose up -d
 
-# Full-stack dev (Next.js + Vite SPA concurrently)
-bun run dev
+curl -sf http://localhost:3001/health             # gateway health
+curl -sI http://localhost:3010/                   # lobechat (200 or 307)
+bash gateway/scripts/acceptance.sh                # 43 automated checks
+bash gateway/scripts/pilot-all.sh                 # 8 real upstream pilots
 ```
 
-After `dev:spa` starts, the terminal prints a **Debug Proxy** URL:
+Admin UI: `http://localhost:3001/admin` (dev login with usernames below).
 
-```plaintext
-Debug Proxy: https://app.lobehub.com/_dangerous_local_dev_proxy?debug-host=http%3A%2F%2Flocalhost%3A9876
-```
+### Dev users (seeded — dev mode passes `X-Dev-User: <name>`)
 
-Open this URL to develop locally against the production backend (app.lobehub.com). The proxy page loads your local Vite dev server's SPA into the online environment, enabling HMR with real server config.
+| user | role | tools visible |
+|---|---|---|
+| `sa` | super_admin | all |
+| `pa` | permission_admin | admin UI only |
+| `sales1` | internal_sales | xiaoshou×4 + kb + ai_search + doc |
+| `ops1` | internal_ops | gongdan×7 + cloudcost×3 + kb + ai_search + doc |
+| `tech1` | internal_tech | gongdan.{get_own_tickets,search_tickets,get_ticket,update_ticket} + kb + ai_search + sandbox |
+| `cust1` | customer | kb + ai_search + sandbox + doc + gongdan.{create_ticket,get_own_tickets} |
 
-### Git Workflow
-
-- **Branch strategy**: `canary` is the development branch (cloud production); `main` is the release branch (periodically cherry-picks from canary)
-- New branches should be created from `canary`; PRs should target `canary`
-- Use rebase for `git pull`
-- Commit messages: prefix with gitmoji
-- Branch format: `<type>/<feature-name>`
-
-### Package Management
-
-- `pnpm` for dependency management
-- `bun` to run npm scripts
-- `bunx` for executable npm packages
-
-### Testing
+### Gateway (inside `gateway/`)
 
 ```bash
-# Run specific test (NEVER run `bun run test` - takes ~10 minutes)
-bunx vitest run --silent='passed-only' '[file-path]'
+cd gateway
+bun install                     # or npm/pnpm
+bun run dev                     # ts-node src/server.ts (listens :3001)
+bun run build && bun run start  # compile + node dist/server.js
+bun run prisma:generate
+bun run prisma:push             # schema → db (accept-data-loss)
+bun run seed                    # seed enterprise_gateway DB
+```
 
-# Database package
+### LobeChat (upstream) dev
+
+Standard upstream scripts still work (`bun run dev:spa`, `bun run dev`, `bunx vitest run ...`). See the legacy guidance section below. In practice **this repo runs LobeChat through docker-compose** — you usually don't start it standalone.
+
+### Troubleshooting
+
+```bash
+docker compose ps -a
+docker logs lobechat-gateway-1 --tail 50
+docker logs lobechat-lobechat-1 --tail 50
+docker exec lobechat-db-1 psql -U eg -d enterprise_gateway -c "\dt enterprise_*"
+docker exec lobechat-redis-1 redis-cli keys 'cap:v1:*'
+bash gateway/scripts/acceptance.sh | grep FAIL
+```
+
+`docker compose down` keeps volumes; `docker compose down -v` wipes `pgdata` (usually don't).
+
+## Things that trip people up
+
+- **Two logical DBs in one Postgres**: `enterprise_gateway` and `lobechat`. Created by `db-init/01-create-dbs.sql` on first container start. If you `docker compose down -v`, re-seed the gateway after reboot (`bun run seed` inside gateway container).
+- **`pg_search` / BM25 is disabled**. Migrations `packages/database/migrations/0090_enable_pg_search.sql` and `0093_add_bm25_indexes_with_icu.sql` are intentionally empty — the `pgvector/pgvector:pg16` image doesn't ship `pg_search.control`. Don't re-enable them without swapping to a paradedb image + data migration.
+- **Don't re-brand upstream files casually**: `README.md` lists the 242 locale files / 760 replacements plus branding constants. i18n **keys were not renamed**, only values — check there before grepping for "LobeHub".
+- **Secrets**: `.env*` are gitignored. Generate prod secrets with `openssl rand -base64 32` for `KEY_VAULTS_SECRET`, `AUTH_SECRET`, `TOKEN_ENCRYPTION_KEY`, `ADMIN_CSRF_SECRET`, `METRICS_TOKEN`. See `docs/PRODUCTION-SECRETS.md`.
+- **Casdoor** requires the user to create the Application manually (`docs/CASDOOR-SETUP.md`) for end-to-end SSO; dev header auth works without it.
+
+## External upstream / integration docs
+
+- `AI-BRAIN-API.md`, `EXTERNAL_SERVICES.md`, `SUPER_OPS_API.md`, `工单接口.md` — four upstream-system specs provided by the user. Consult these before touching any `gateway/src/tools/*` adapter.
+- `docs/DELIVERY.md` — delivery checklist + test report.
+- `.omc/plans/autopilot-impl.md`, `.omc/autopilot/spec.md` — original implementation plan.
+
+---
+
+## Upstream LobeChat conventions (still apply when editing LobeChat code)
+
+Tech stack: Next.js 16 + React 19 + TS · SPA via `react-router-dom` · `@lobehub/ui` + antd · antd-style (prefer `createStaticStyles` with `cssVar.*`, fall back to `createStyles` + `token` only when runtime needed — see `.cursor/docs/createStaticStyles_migration_guide.md`) · react-i18next · zustand · SWR · tRPC · Drizzle ORM · Vitest.
+
+LobeChat layout:
+- `apps/desktop/` — Electron app
+- `packages/` — shared `@lobechat/*` (database, agent-runtime, ...)
+- `src/app/` — Next.js App Router (backend API, auth pages)
+- `src/routes/` — **thin** SPA page segments; only import from `@/features/*`
+- `src/features/` — domain UI + hooks
+- `src/spa/` — SPA entries (`entry.web.tsx`, `entry.mobile.tsx`, `entry.desktop.tsx`) + `router/`
+- `src/store/`, `src/services/`, `src/server/`, `e2e/`
+
+When adding an SPA route, keep route files thin and put logic under `src/features/<Domain>/`. **Register desktop routes in both** `src/spa/router/desktopRouter.config.tsx` **and** `desktopRouter.config.desktop.tsx` — mismatch causes blank screens. See `.agents/skills/spa-routes/SKILL.md`.
+
+Testing:
+```bash
+bunx vitest run --silent='passed-only' '[file]'          # never run `bun run test` — ~10 min
 cd packages/database && bunx vitest run --silent='passed-only' '[file]'
+bun run type-check
 ```
+Prefer `vi.spyOn` over `vi.mock`. After 2 failed fix attempts, stop and ask.
 
-- Prefer `vi.spyOn` over `vi.mock`
-- Tests must pass type check: `bun run type-check`
-- After 2 failed fix attempts, stop and ask for help
+i18n: add keys to `src/locales/default/<namespace>.ts`; for preview translate `locales/zh-CN/` + `locales/en-US/`; don't run `pnpm i18n` (CI handles it).
 
-### i18n
+Git: `canary` = dev branch, `main` = release (cherry-picks from canary). Branch new work off `canary`, PR into `canary`. Rebase on pull. Gitmoji commit prefix. Branch name `<type>/<feature-name>`.
 
-- Add keys to `src/locales/default/namespace.ts`
-- For dev preview: translate `locales/zh-CN/` and `locales/en-US/`
-- Don't run `pnpm i18n` - CI handles it
-
-## Skills (Auto-loaded by Claude)
-
-Claude Code automatically loads relevant skills from `.agents/skills/`.
+Package tooling: `pnpm` for deps, `bun` for scripts, `bunx` for npm executables.

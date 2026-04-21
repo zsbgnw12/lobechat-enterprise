@@ -1,8 +1,10 @@
 import { FastifyInstance } from 'fastify';
 import { authenticate, requireRoles } from '../../auth/middleware';
 import { prisma } from '../../db';
-import { cache } from '../../core/cache';
-import { CAP_CACHE_PREFIX } from '../../core/capabilities';
+import {
+  invalidateUserCapabilityCache,
+  invalidateRoleCapabilityCache,
+} from '../../core/capabilities';
 import { RATE_LIMIT_ADMIN_MUTATE } from '../../core/rateLimiter';
 
 export async function adminToolsRoutes(app: FastifyInstance) {
@@ -37,14 +39,27 @@ export async function adminToolsRoutes(app: FastifyInstance) {
         constraints: b.constraints,
       },
     });
-    await cache.invalidate(CAP_CACHE_PREFIX);
+    // 定点失效：user 型只清该 user；role 型清该 role 下所有绑定用户。
+    if (created.subjectType === 'user') {
+      await invalidateUserCapabilityCache(created.subjectId);
+    } else if (created.subjectType === 'role') {
+      await invalidateRoleCapabilityCache(created.subjectId);
+    }
     return created;
   });
 
   app.delete('/api/admin/tool-permissions/:id', { ...guard, config: RATE_LIMIT_ADMIN_MUTATE }, async (req) => {
     const { id } = req.params as any;
+    // 先查再删，以便拿到 subjectType / subjectId 做定点失效
+    const existing = await prisma.enterpriseToolPermission.findUnique({ where: { id } });
     await prisma.enterpriseToolPermission.delete({ where: { id } });
-    await cache.invalidate(CAP_CACHE_PREFIX);
+    if (existing) {
+      if (existing.subjectType === 'user') {
+        await invalidateUserCapabilityCache(existing.subjectId);
+      } else if (existing.subjectType === 'role') {
+        await invalidateRoleCapabilityCache(existing.subjectId);
+      }
+    }
     return { ok: true };
   });
 }

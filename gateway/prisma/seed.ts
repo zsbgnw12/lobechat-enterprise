@@ -25,9 +25,10 @@ const TOOLS = [
   { key: 'xiaoshou.get_customer', category: 'xiaoshou', display_name: 'Get Customer' },
   { key: 'xiaoshou.get_customer_insight', category: 'xiaoshou', display_name: 'Customer Insight' },
   { key: 'xiaoshou.get_allocations', category: 'xiaoshou', display_name: 'Allocations' },
-  // cloudcost — 2
+  // cloudcost — 3
   { key: 'cloudcost.get_overview', category: 'cloudcost', display_name: 'Cloud Overview' },
   { key: 'cloudcost.get_daily_report', category: 'cloudcost', display_name: 'Daily Report' },
+  { key: 'cloudcost.get_billing_detail', category: 'cloudcost', display_name: 'Billing Detail' },
   // kb, ai_search, sandbox, doc — 1 each
   { key: 'kb.search', category: 'kb', display_name: 'KB Search' },
   { key: 'ai_search.web', category: 'ai_search', display_name: 'Web Search' },
@@ -133,6 +134,19 @@ const TOOL_INPUT_SCHEMAS: Record<string, object> = {
     },
     additionalProperties: true,
   },
+  'cloudcost.get_billing_detail': {
+    type: 'object',
+    properties: {
+      date_start: { type: 'string', description: 'YYYY-MM-DD，默认最近 7 天起点' },
+      date_end: { type: 'string', description: 'YYYY-MM-DD，默认今日' },
+      provider: { type: 'string', description: '云厂商过滤：azure/gcp/...' },
+      project_id: { type: 'string' },
+      product: { type: 'string' },
+      page: { type: 'integer', minimum: 1 },
+      page_size: { type: 'integer', minimum: 1, maximum: 500 },
+    },
+    additionalProperties: true,
+  },
   'kb.search': {
     type: 'object',
     properties: {
@@ -194,6 +208,7 @@ const ROLE_TOOL_GRANTS: Record<string, string[]> = {
     'gongdan.close_ticket',
     'cloudcost.get_overview',
     'cloudcost.get_daily_report',
+    'cloudcost.get_billing_detail',
     'kb.search',
     'ai_search.web',
     'doc.generate',
@@ -207,7 +222,15 @@ const ROLE_TOOL_GRANTS: Record<string, string[]> = {
     'ai_search.web',
     'sandbox.run',
   ],
-  customer: ['gongdan.create_ticket', 'gongdan.get_own_tickets', 'kb.search'],
+  customer: [
+    'gongdan.create_ticket',
+    'gongdan.get_own_tickets',
+    'kb.search',
+    // PLAN.md Phase 2 —— 客户安全能力全集：Web 搜索 / 沙盒 / 文档生成
+    'ai_search.web',
+    'sandbox.run',
+    'doc.generate',
+  ],
 };
 
 async function ensureToolInputSchemas() {
@@ -339,17 +362,46 @@ async function main() {
     await prisma.enterpriseDataScope.create({ data: s });
   }
 
-  // Field policies — role_keys are roles that STILL SEE the field
+  // Field policies — role_keys 是"仍能看到原值"的角色白名单；其他角色受策略影响。
+  //
+  // 分层设计：
+  //   1) 业务字段：按 (sourceSystem, entityType) 精确绑定，哪些角色能看原值由业务决定
+  //   2) PII 字段：手机/邮箱/身份证/地址 —— 非内部角色一律 hash 或 mask，内部运营/销售/技术可见
+  //   3) 凭据字段：apiKey / secret / token / password / access_key —— 只有 super_admin 能看，通配所有系统
   const policies = [
+    // ─── 1) 业务敏感：工单联系人信息、销售额、云成本 ────────────────
     { sourceSystem: 'gongdan', entityType: 'ticket', fieldPath: 'contactInfo', policy: 'mask', roleKeys: ['internal_ops', 'super_admin'] },
     { sourceSystem: 'xiaoshou', entityType: 'customer', fieldPath: 'current_month_consumption', policy: 'drop', roleKeys: ['internal_ops', 'super_admin'] },
+    { sourceSystem: 'xiaoshou', entityType: 'customer', fieldPath: 'contract_amount', policy: 'mask', roleKeys: ['internal_ops', 'internal_sales', 'super_admin'] },
+    { sourceSystem: 'xiaoshou', entityType: 'customer', fieldPath: 'discount_rate', policy: 'mask', roleKeys: ['internal_ops', 'internal_sales', 'super_admin'] },
     { sourceSystem: 'cloudcost', entityType: 'service_account', fieldPath: 'cost', policy: 'mask', roleKeys: ['internal_ops', 'super_admin', 'permission_admin'] },
-    // Wildcard secret-keepers
+    // 账单明细行的金额字段：只有运营/财务/super_admin 可见
+    { sourceSystem: 'cloudcost', entityType: 'billing_row', fieldPath: 'cost', policy: 'mask', roleKeys: ['internal_ops', 'super_admin'] },
+    { sourceSystem: 'cloudcost', entityType: 'billing_row', fieldPath: 'usage_quantity', policy: 'mask', roleKeys: ['internal_ops', 'super_admin'] },
+
+    // ─── 2) PII：手机 / 邮箱 / 身份证 / 家庭住址 ────────────────────
+    // 客户角色看不到自己以外任何人的联系方式；内部员工可以
+    { sourceSystem: '*', entityType: '*', fieldPath: '*.id_card', policy: 'hash', roleKeys: ['internal_ops', 'super_admin'] },
+    { sourceSystem: '*', entityType: '*', fieldPath: '*.idcard', policy: 'hash', roleKeys: ['internal_ops', 'super_admin'] },
+    { sourceSystem: '*', entityType: '*', fieldPath: '*.id_number', policy: 'hash', roleKeys: ['internal_ops', 'super_admin'] },
+    { sourceSystem: '*', entityType: '*', fieldPath: '*.phone', policy: 'mask', roleKeys: ['internal_ops', 'internal_sales', 'internal_tech', 'super_admin'] },
+    { sourceSystem: '*', entityType: '*', fieldPath: '*.mobile', policy: 'mask', roleKeys: ['internal_ops', 'internal_sales', 'internal_tech', 'super_admin'] },
+    { sourceSystem: '*', entityType: '*', fieldPath: '*.contact_phone', policy: 'mask', roleKeys: ['internal_ops', 'internal_sales', 'internal_tech', 'super_admin'] },
+    { sourceSystem: '*', entityType: '*', fieldPath: '*.contact_email', policy: 'mask', roleKeys: ['internal_ops', 'internal_sales', 'internal_tech', 'super_admin'] },
+    { sourceSystem: '*', entityType: '*', fieldPath: '*.home_address', policy: 'mask', roleKeys: ['internal_ops', 'super_admin'] },
+
+    // ─── 3) 凭据 / 密钥：super_admin 专属 ───────────────────────────
     { sourceSystem: '*', entityType: '*', fieldPath: '*.apiKey', policy: 'drop', roleKeys: ['super_admin'] },
     { sourceSystem: '*', entityType: '*', fieldPath: '*.api_key', policy: 'drop', roleKeys: ['super_admin'] },
     { sourceSystem: '*', entityType: '*', fieldPath: '*.secret_key', policy: 'drop', roleKeys: ['super_admin'] },
     { sourceSystem: '*', entityType: '*', fieldPath: '*.secret', policy: 'drop', roleKeys: ['super_admin'] },
     { sourceSystem: '*', entityType: '*', fieldPath: '*.secret_*', policy: 'drop', roleKeys: ['super_admin'] },
+    { sourceSystem: '*', entityType: '*', fieldPath: '*.access_key', policy: 'drop', roleKeys: ['super_admin'] },
+    { sourceSystem: '*', entityType: '*', fieldPath: '*.access_token', policy: 'drop', roleKeys: ['super_admin'] },
+    { sourceSystem: '*', entityType: '*', fieldPath: '*.refresh_token', policy: 'drop', roleKeys: ['super_admin'] },
+    { sourceSystem: '*', entityType: '*', fieldPath: '*.password', policy: 'drop', roleKeys: ['super_admin'] },
+    { sourceSystem: '*', entityType: '*', fieldPath: '*.client_secret', policy: 'drop', roleKeys: ['super_admin'] },
+    { sourceSystem: '*', entityType: '*', fieldPath: '*.private_key', policy: 'drop', roleKeys: ['super_admin'] },
   ];
   for (const p of policies) {
     await prisma.enterpriseFieldPolicy.create({ data: p });

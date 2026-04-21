@@ -103,6 +103,10 @@ services:
       AUTH_CASDOOR_ISSUER: ${AUTH_CASDOOR_ISSUER:-http://casdoor.ashyglacier-8207efd2.eastasia.azurecontainerapps.io}
       # Internal gateway URL so server-side code can call enterprise tools
       GATEWAY_INTERNAL_URL: ${GATEWAY_INTERNAL_URL:-http://gateway:3001}
+      # Upstream zod schema: z.string().url().optional(). Dockerfile defaults
+      # S3_ENDPOINT="" which fails URL validation. Provide a placeholder URL
+      # (S3 is not actually used by this prototype).
+      S3_ENDPOINT: ${S3_ENDPOINT:-http://s3-disabled.local}
       # Model provider keys (user fills in .env)
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}

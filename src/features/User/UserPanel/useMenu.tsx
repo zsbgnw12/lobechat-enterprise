@@ -124,7 +124,9 @@ export const useMenu = () => {
 
     ...(isLogin ? settings : []),
     ...businessMenuItems,
-    ...(!isDesktop ? [{ type: 'divider' as const }, ...getDesktopApp] : []),
+    // [enterprise-fork] Desktop-app download entry removed — this is a
+    // web-only enterprise deployment, users should not be directed to
+    // download an external desktop app.
     ...(userPanel.showDataImporter && isLogin
       ? [
           {

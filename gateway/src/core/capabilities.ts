@@ -15,6 +15,40 @@ export interface AllowedTool {
 export const CAP_CACHE_PREFIX = 'cap:v1:';
 const CAP_TTL_SEC = 60;
 
+/**
+ * 定点失效某个用户的能力缓存。
+ * 权限变更只影响具体 user 时首选此函数，避免一次性清空全部用户缓存。
+ */
+export async function invalidateUserCapabilityCache(userId: string): Promise<void> {
+  if (!userId) return;
+  await cache.del(`${CAP_CACHE_PREFIX}${userId}`);
+}
+
+/**
+ * 定点失效：某个角色下所有绑定用户的能力缓存。
+ * 用于角色级工具授权变更（tool-permission subjectType='role'）。
+ * 注意：这里仍是"批量失效一组 userId"，不是全量 prefix-scan；
+ * 如果该角色绑定用户数量很大，可再改成异步作业。
+ */
+export async function invalidateRoleCapabilityCache(roleId: string): Promise<void> {
+  if (!roleId) return;
+  const links = await prisma.enterpriseUserRole.findMany({
+    where: { roleId },
+    select: { userId: true },
+  });
+  await Promise.all(links.map((l) => cache.del(`${CAP_CACHE_PREFIX}${l.userId}`)));
+}
+
+/**
+ * 全量失效兜底。仅用于：
+ *  - 种子/迁移后强制刷新
+ *  - 不确定影响面的管理操作
+ * 业务代码应优先使用上面两个定点失效函数。
+ */
+export async function invalidateAllCapabilityCache(): Promise<void> {
+  await cache.invalidate(CAP_CACHE_PREFIX);
+}
+
 export async function resolveAllowedTools(auth: AuthContext): Promise<AllowedTool[]> {
   const cacheKey = `${CAP_CACHE_PREFIX}${auth.userId}`;
   const cached = await cache.getJSON<AllowedTool[]>(cacheKey);

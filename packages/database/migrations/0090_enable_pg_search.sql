@@ -1,2 +1,13 @@
--- Custom SQL migration file, put your code below! --
-CREATE EXTENSION IF NOT EXISTS pg_search;
+-- Intentionally empty in this fork.
+--
+-- The `pgvector/pgvector:pg16` image used by docker-compose does NOT ship
+-- `pg_search.control`, so `CREATE EXTENSION pg_search` fails the drizzle
+-- migration and crashes LobeChat on start.
+--
+-- This prototype relies on pgvector for vector RAG and does not need BM25
+-- full-text search. If you want BM25, swap the DB image to
+-- `paradedb/paradedb:*` and restore the upstream SQL body (see git blame).
+--
+-- Do NOT re-add `CREATE EXTENSION IF NOT EXISTS pg_search;` without the
+-- image swap — LobeChat will crashloop. See README.md § "pg_search / BM25
+-- is disabled".

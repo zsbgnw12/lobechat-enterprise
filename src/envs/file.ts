@@ -33,7 +33,9 @@ export const getFileConfig = () => {
       S3_ACCESS_KEY_ID: process.env.S3_ACCESS_KEY_ID,
       S3_BUCKET: process.env.S3_BUCKET,
       S3_ENABLE_PATH_STYLE: process.env.S3_ENABLE_PATH_STYLE === '1',
-      S3_ENDPOINT: process.env.S3_ENDPOINT,
+      // Empty string → undefined so z.string().url().optional() doesn't reject "".
+      // Our Dockerfile declares ENV S3_ENDPOINT="" for default, which is not a valid URL.
+      S3_ENDPOINT: process.env.S3_ENDPOINT || undefined,
       S3_PREVIEW_URL_EXPIRE_IN: parseInt(process.env.S3_PREVIEW_URL_EXPIRE_IN || '7200'),
       S3_PUBLIC_DOMAIN,
       S3_REGION: process.env.S3_REGION,

@@ -99,7 +99,8 @@ export const useCategory = (onOpenChangelogModal: () => void) => {
     },
     ...(isLoginWithAuth ? profile : []),
     ...(isLoginWithAuth ? settings : []),
-    ...getDesktopApp,
+    // [enterprise-fork] Desktop-app download entry removed — see
+    // src/features/User/UserPanel/useMenu.tsx for the web version.
     ...(!hideDocs ? helps : []),
   ].filter(Boolean) as CellProps[];
 

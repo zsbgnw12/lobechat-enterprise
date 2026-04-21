@@ -1,8 +1,7 @@
 import { FastifyInstance } from 'fastify';
 import { authenticate, requireRoles } from '../../auth/middleware';
 import { prisma } from '../../db';
-import { cache } from '../../core/cache';
-import { CAP_CACHE_PREFIX } from '../../core/capabilities';
+import { invalidateUserCapabilityCache } from '../../core/capabilities';
 import { RATE_LIMIT_ADMIN_MUTATE } from '../../core/rateLimiter';
 
 export async function adminUsersRoutes(app: FastifyInstance) {
@@ -46,7 +45,8 @@ export async function adminUsersRoutes(app: FastifyInstance) {
     for (const r of roles) {
       await prisma.enterpriseUserRole.create({ data: { userId: id, roleId: r.id } });
     }
-    await cache.invalidate(CAP_CACHE_PREFIX);
+    // 只失效被改动的这个用户，不触碰其他在线会话
+    await invalidateUserCapabilityCache(id);
     return { ok: true, granted: roles.map((r) => r.key) };
   });
 }
