@@ -5,6 +5,7 @@ import { memo } from 'react';
 import { Outlet, useNavigate, useParams } from 'react-router-dom';
 
 import { isCustomBranding } from '@/const/version';
+import AdminOnly from '@/features/AdminOnly';
 
 import DesktopLayoutContainer from './_layout/Desktop/Container';
 import Footer from './(list)/Footer';
@@ -12,6 +13,7 @@ import ProviderDetailPageComponent from './detail';
 import ProviderMenu from './ProviderMenu';
 
 // Layout component that wraps provider pages with navigation
+// [enterprise-fork] wrap in AdminOnly — 普通用户不能配置模型服务商
 export const ProviderLayout = memo(() => {
   const navigate = useNavigate();
 
@@ -20,19 +22,21 @@ export const ProviderLayout = memo(() => {
   };
 
   return (
-    <Flexbox
-      horizontal
-      width={'100%'}
-      style={{
-        maxHeight: '100%',
-      }}
-    >
-      <ProviderMenu mobile={false} onProviderSelect={handleProviderSelect} />
-      <DesktopLayoutContainer>
-        <Outlet />
-        {!isCustomBranding && <Footer />}
-      </DesktopLayoutContainer>
-    </Flexbox>
+    <AdminOnly>
+      <Flexbox
+        horizontal
+        width={'100%'}
+        style={{
+          maxHeight: '100%',
+        }}
+      >
+        <ProviderMenu mobile={false} onProviderSelect={handleProviderSelect} />
+        <DesktopLayoutContainer>
+          <Outlet />
+          {!isCustomBranding && <Footer />}
+        </DesktopLayoutContainer>
+      </Flexbox>
+    </AdminOnly>
   );
 });
 
@@ -48,10 +52,12 @@ export const ProviderDetailPage = memo(() => {
   };
 
   return (
-    <ProviderDetailPageComponent
-      id={params.providerId ?? ''}
-      onProviderSelect={handleProviderSelect}
-    />
+    <AdminOnly>
+      <ProviderDetailPageComponent
+        id={params.providerId ?? ''}
+        onProviderSelect={handleProviderSelect}
+      />
+    </AdminOnly>
   );
 });
 

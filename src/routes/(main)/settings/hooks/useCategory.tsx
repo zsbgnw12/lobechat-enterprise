@@ -24,6 +24,7 @@ import {
 import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 
+import { useIsAdmin } from '@/hooks/useEnterpriseRole';
 import { useElectronStore } from '@/store/electron';
 import { electronSyncSelectors } from '@/store/electron/selectors';
 import { SettingsTabs } from '@/store/global/initialState';
@@ -67,6 +68,11 @@ export const useCategory = () => {
   ]);
   const remoteServerUrl = useElectronStore(electronSyncSelectors.remoteServerUrl);
   const isDevMode = useUserStore((s) => userGeneralSettingsSelectors.config(s).isDevMode);
+  // [enterprise-fork] 非管理员角色不应该看到 "模型服务商 / API Key / 凭据 /
+  // 存储 / 高级" 这类能动系统配置的菜单项——他们只能用管理员预配的资源。
+  // super_admin 和 permission_admin 视为管理员，其他角色（internal_*、customer）
+  // 和未解析到角色的用户都按"普通用户"处理。
+  const isAdmin = useIsAdmin();
 
   const avatarUrl = useMemo(() => {
     if (!avatar) return undefined;
@@ -132,69 +138,85 @@ export const useCategory = () => {
       });
     }
 
-    // Agent group
+    // Agent group —— 配置 AI 能力的地方；普通用户不应该能自己配 provider / key
     const agentItems: CategoryItem[] = [
-      (!enableBusinessFeatures || isDevMode) && {
-        icon: Brain,
-        key: SettingsTabs.Provider,
-        label: t('tab.provider'),
-      },
-      {
+      // [enterprise-fork] 模型服务商（填 OpenAI Key 等）：管理员专属
+      isAdmin &&
+        (!enableBusinessFeatures || isDevMode) && {
+          icon: Brain,
+          key: SettingsTabs.Provider,
+          label: t('tab.provider'),
+        },
+      // [enterprise-fork] 服务模型选择：管理员专属（普通用户只能用管理员分配好的）
+      isAdmin && {
         icon: Sparkles,
         key: SettingsTabs.ServiceModel,
         label: t('tab.serviceModel'),
       },
-      {
+      // [enterprise-fork] 技能 / 插件管理：管理员专属
+      isAdmin && {
         icon: SkillsIcon,
         key: SettingsTabs.Skill,
         label: t('tab.skill'),
       },
+      // Memory 是每个用户自己的偏好记忆，保留给所有人
       {
         icon: BrainCircuit,
         key: SettingsTabs.Memory,
         label: t('tab.memory'),
       },
-      {
+      // [enterprise-fork] 凭据管理（MCP / 外部服务 token）：管理员专属
+      isAdmin && {
         icon: KeyRound,
         key: SettingsTabs.Creds,
         label: t('tab.creds'),
       },
-      showApiKeyManage && {
-        icon: KeyIcon,
-        key: SettingsTabs.APIKey,
-        label: tAuth('tab.apikey'),
-      },
+      // [enterprise-fork] API Key 管理：管理员专属
+      isAdmin &&
+        showApiKeyManage && {
+          icon: KeyIcon,
+          key: SettingsTabs.APIKey,
+          label: tAuth('tab.apikey'),
+        },
     ].filter(Boolean) as CategoryItem[];
 
-    groups.push({
-      items: agentItems,
-      key: SettingsGroupKey.Agent,
-      title: t('group.aiConfig'),
-    });
+    // 如果 Agent 组全部被过滤空了就不 push，避免左栏出现空组
+    if (agentItems.length > 0) {
+      groups.push({
+        items: agentItems,
+        key: SettingsGroupKey.Agent,
+        title: t('group.aiConfig'),
+      });
+    }
 
-    // System group
+    // System group —— 存储 / 代理 / 高级设置全部管理员专属，普通用户只保留 About
     const systemItems: CategoryItem[] = [
-      isDesktop && {
-        icon: EthernetPort,
-        key: SettingsTabs.Proxy,
-        label: t('tab.proxy'),
-      },
-      isDesktop && {
-        icon: TerminalSquare,
-        key: SettingsTabs.SystemTools,
-        label: t('tab.systemTools'),
-      },
-      {
+      isAdmin &&
+        isDesktop && {
+          icon: EthernetPort,
+          key: SettingsTabs.Proxy,
+          label: t('tab.proxy'),
+        },
+      isAdmin &&
+        isDesktop && {
+          icon: TerminalSquare,
+          key: SettingsTabs.SystemTools,
+          label: t('tab.systemTools'),
+        },
+      // [enterprise-fork] 数据存储配置：管理员专属
+      isAdmin && {
         icon: Database,
         key: SettingsTabs.Storage,
         label: t('tab.storage'),
       },
-      isDevMode && {
-        icon: KeyIcon,
-        key: SettingsTabs.APIKey,
-        label: tAuth('tab.apikey'),
-      },
-      {
+      isAdmin &&
+        isDevMode && {
+          icon: KeyIcon,
+          key: SettingsTabs.APIKey,
+          label: tAuth('tab.apikey'),
+        },
+      // [enterprise-fork] 高级设置：管理员专属
+      isAdmin && {
         icon: EllipsisIcon,
         key: SettingsTabs.Advanced,
         label: t('tab.advanced'),
@@ -222,6 +244,7 @@ export const useCategory = () => {
     mobile,
     showApiKeyManage,
     isDevMode,
+    isAdmin,
     avatarUrl,
     username,
   ]);

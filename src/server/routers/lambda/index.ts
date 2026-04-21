@@ -29,6 +29,7 @@ import { comfyuiRouter } from './comfyui';
 import { configRouter } from './config';
 import { deviceRouter } from './device';
 import { documentRouter } from './document';
+import { enterpriseRoleRouter } from './enterpriseRole';
 import { exporterRouter } from './exporter';
 import { fileRouter } from './file';
 import { generationRouter } from './generation';
@@ -84,6 +85,7 @@ export const lambdaRouter = router({
   config: configRouter,
   device: deviceRouter,
   document: documentRouter,
+  enterpriseRole: enterpriseRoleRouter,
   exporter: exporterRouter,
   file: fileRouter,
   generation: generationRouter,

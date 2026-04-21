@@ -11,6 +11,7 @@ import { memo, useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { FORM_STYLE } from '@/const/layoutTokens';
+import AdminOnly from '@/features/AdminOnly';
 import SettingHeader from '@/routes/(main)/settings/features/SettingHeader';
 import { autoUpdateService } from '@/services/electron/autoUpdate';
 import { useServerConfigStore } from '@/store/serverConfig';
@@ -165,8 +166,10 @@ const Page = memo(() => {
     ? [advancedGroup, updateChannelGroup, labsGroup]
     : [advancedGroup, labsGroup];
 
+  // [enterprise-fork] 高级设置只给管理员——开关 dev mode / 更新通道 / 实验
+  // 特性会影响全局行为，普通用户不该接触
   return (
-    <>
+    <AdminOnly>
       <SettingHeader title={t('tab.advanced')} />
       <Form
         collapsible={false}
@@ -181,7 +184,7 @@ const Page = memo(() => {
         }}
         {...FORM_STYLE}
       />
-    </>
+    </AdminOnly>
   );
 });
 

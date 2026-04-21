@@ -5,11 +5,13 @@ import { Store } from 'lucide-react';
 import { useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 
+import AdminOnly from '@/features/AdminOnly';
 import { createSkillStoreModal } from '@/features/SkillStore';
 import SettingHeader from '@/routes/(main)/settings/features/SettingHeader';
 
 import SkillList from './features/SkillList';
 
+// [enterprise-fork] wrap in AdminOnly — 技能 / 插件库由管理员统一维护
 const Page = () => {
   const { t } = useTranslation('setting');
 
@@ -18,7 +20,7 @@ const Page = () => {
   }, []);
 
   return (
-    <>
+    <AdminOnly>
       <SettingHeader
         title={t('tab.skill')}
         extra={
@@ -28,7 +30,7 @@ const Page = () => {
         }
       />
       <SkillList />
-    </>
+    </AdminOnly>
   );
 };
 

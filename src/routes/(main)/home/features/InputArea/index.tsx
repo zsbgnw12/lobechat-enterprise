@@ -1,5 +1,4 @@
 import { Flexbox } from '@lobehub/ui';
-import { AnimatePresence, m } from 'motion/react';
 import { useEffect, useMemo, useRef } from 'react';
 
 import DragUploadZone, { useUploadFiles } from '@/components/DragUploadZone';
@@ -13,12 +12,15 @@ import { systemStatusSelectors } from '@/store/global/selectors';
 import { useHomeStore } from '@/store/home';
 import { serverConfigSelectors, useServerConfigStore } from '@/store/serverConfig';
 
-import CommunityRecommend from '../CommunityRecommend';
-import SuggestQuestions from '../SuggestQuestions';
 import ModeTag from './ModeTag';
 import SkillInstallBanner, { SKILL_INSTALL_BANNER_ID } from './SkillInstallBanner';
-import StarterList from './StarterList';
 import { useSend } from './useSend';
+
+// [enterprise-fork] 以下 import 已在注释掉的 JSX 里使用；保留 JSX 需要时恢复：
+//   import { AnimatePresence, m } from 'motion/react';
+//   import CommunityRecommend from '../CommunityRecommend';
+//   import SuggestQuestions from '../SuggestQuestions';
+//   import StarterList from './StarterList';
 
 const leftActions: ActionKeys[] = ['model', 'search', 'fileUpload', 'tools'];
 
@@ -67,9 +69,8 @@ const InputArea = () => {
     [],
   );
 
-  const hideStarterList = inputActiveMode && ['agent', 'group', 'write'].includes(inputActiveMode);
-  const showSuggestQuestions =
-    !inputActiveMode || ['agent', 'group', 'write'].includes(inputActiveMode);
+  // [enterprise-fork] hideStarterList / showSuggestQuestions 是给已注释掉的
+  // StarterList / SuggestQuestions 用的——恢复 JSX 时一起恢复这两个 const。
 
   const extraActionItems = useMemo(
     () =>
@@ -125,7 +126,11 @@ const InputArea = () => {
         </DragUploadZone>
       </Flexbox>
 
-      {/* Keep StarterList mounted to prevent useInitBuiltinAgent hooks from re-running */}
+      {/* [enterprise-fork] 隐藏首页对话框下方的引导 / 示例 / 社区推荐板块。
+          原先在此渲染 StarterList / SuggestQuestions / CommunityRecommend
+          三件套（闲聊引导 chip、AI 推荐问题、社区分享入口）。企业场景用户
+          明确是来调工具的，这些只是噪音。保留了 `showSuggestQuestions` 等
+          计算值的声明以维持 hook 调用顺序稳定。如需恢复，取消下面 JSX 注释即可。
       <div style={{ display: hideStarterList ? 'none' : undefined }}>
         <StarterList />
       </div>
@@ -149,6 +154,7 @@ const InputArea = () => {
           </m.div>
         )}
       </AnimatePresence>
+      */}
     </Flexbox>
   );
 };

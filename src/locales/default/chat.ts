@@ -158,7 +158,7 @@ export default {
   'historySummary': 'Historical Message Summary',
   'inactive': 'Inactive',
   'inbox.desc': 'Collaborate in one Workspace and move ideas into outcomes.',
-  'inbox.title': 'Lobe AI',
+  'inbox.title': 'Enterprise AI',
   'input.addAi': 'Add an AI message',
   'input.addUser': 'Add a user message',
   'input.disclaimer': 'Agents can make mistakes. Use your judgment for critical info.',

@@ -9,6 +9,7 @@ import { useTranslation } from 'react-i18next';
 
 import ModelSwitchPanel from '@/features/ModelSwitchPanel';
 import ModelDetailPanel from '@/features/ModelSwitchPanel/components/ModelDetailPanel';
+import { useIsAdmin } from '@/hooks/useEnterpriseRole';
 import { useAgentStore } from '@/store/agent';
 import { agentByIdSelectors } from '@/store/agent/selectors';
 import { aiModelSelectors, useAiInfraStore } from '@/store/aiInfra';
@@ -57,6 +58,8 @@ const ModelSwitch = memo(() => {
   const { t } = useTranslation('chat');
   const { dropdownPlacement } = useActionBarContext();
   const isDevMode = useUserStore((s) => userGeneralSettingsSelectors.config(s).isDevMode);
+  // [enterprise-fork] 普通用户不能自己切换模型——只用管理员为 Agent 预配好的
+  const isAdmin = useIsAdmin();
 
   const agentId = useAgentId();
   const [model, provider, updateAgentConfigById] = useAgentStore((s) => [
@@ -69,7 +72,7 @@ const ModelSwitch = memo(() => {
     aiModelSelectors.isModelHasExtendParams(model, provider),
   );
 
-  const showExtendParams = isDevMode && isModelHasExtendParams;
+  const showExtendParams = isDevMode && isModelHasExtendParams && isAdmin;
 
   const handleModelChange = useCallback(
     async (params: { model: string; provider: string }) => {
@@ -77,6 +80,17 @@ const ModelSwitch = memo(() => {
     },
     [agentId, updateAgentConfigById],
   );
+
+  // 非管理员：只显示当前模型图标，不可点击切换
+  if (!isAdmin) {
+    return (
+      <Center className={styles.model} height={36} width={36}>
+        <div className={styles.icon}>
+          <ModelIcon model={model} size={22} />
+        </div>
+      </Center>
+    );
+  }
 
   return (
     <Flexbox horizontal align={'center'} className={showExtendParams ? styles.container : ''}>
