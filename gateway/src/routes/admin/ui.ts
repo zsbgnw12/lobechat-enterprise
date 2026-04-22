@@ -1,8 +1,9 @@
-import { createHmac, randomBytes, timingSafeEqual } from 'crypto';
-import { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
-import { env } from '../../env';
+import { createHmac, randomBytes, timingSafeEqual } from 'node:crypto';
+
+import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
+
 import { authenticate } from '../../auth/middleware';
-import { resolveDevUser } from '../../auth/devAuth';
+import { env } from '../../env';
 
 const ADMIN_ROLES = ['super_admin', 'permission_admin'];
 
@@ -12,7 +13,7 @@ function csrfSecret(): string {
   return process.env.ADMIN_CSRF_SECRET || process.env.NEXT_AUTH_SECRET || 'dev-admin-csrf-fallback';
 }
 function b64url(buf: Buffer): string {
-  return buf.toString('base64').replace(/=+$/, '').replace(/\+/g, '-').replace(/\//g, '_');
+  return buf.toString('base64').replace(/=+$/, '').replaceAll('+', '-').replaceAll('/', '_');
 }
 function signCsrf(nonce: string): string {
   return b64url(createHmac('sha256', csrfSecret()).update(nonce).digest());
@@ -40,11 +41,11 @@ function verifyCsrf(token: string | undefined): boolean {
 
 function escHtml(s: unknown): string {
   return String(s ?? '')
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;');
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&#39;');
 }
 
 // ── helpers ──────────────────────────────────────────────────────────────────
@@ -137,8 +138,11 @@ h1{font-size:48px;color:#ef4444;margin-bottom:12px}p{color:#64748b;font-size:16p
 </html>`;
 }
 
-function loginPage(error = '', csrfToken = ''): string {
-  return shell('Login', `
+function loginPage(error = '', csrfToken = '', prefillUsername = ''): string {
+  const safeUser = escHtml(prefillUsername);
+  return shell(
+    'Login',
+    `
 <h1>Dev Login</h1>
 ${error ? `<p style="color:#ef4444;margin-bottom:12px">${escHtml(error)}</p>` : ''}
 <div style="background:#fff;padding:24px;border-radius:8px;box-shadow:0 1px 4px rgba(0,0,0,.08);max-width:360px">
@@ -146,13 +150,14 @@ ${error ? `<p style="color:#ef4444;margin-bottom:12px">${escHtml(error)}</p>` : 
     <input type="hidden" name="_csrf" value="${escHtml(csrfToken)}"/>
     <div style="margin-bottom:14px">
       <label style="display:block;font-size:13px;font-weight:600;margin-bottom:6px">Username</label>
-      <input name="username" type="text" placeholder="sa / pa / ..." style="width:100%" required/>
+      <input name="username" type="text" placeholder="sa / pa / ..." style="width:100%" required value="${safeUser}"/>
     </div>
     <button type="submit" class="btn-primary" style="width:100%">Login</button>
   </form>
 </div>
 <p style="margin-top:12px;font-size:12px;color:#94a3b8">Dev mode only — sets dev_user cookie</p>
-`);
+`,
+  );
 }
 
 // ── auth guard for UI routes ─────────────────────────────────────────────────
@@ -182,7 +187,9 @@ export async function adminUiRoutes(app: FastifyInstance) {
       try {
         const params = new URLSearchParams(body);
         const result: Record<string, string> = {};
-        params.forEach((v, k) => { result[k] = v; });
+        params.forEach((v, k) => {
+          result[k] = v;
+        });
         done(null, result);
       } catch (e) {
         done(e as Error, undefined);
@@ -192,8 +199,11 @@ export async function adminUiRoutes(app: FastifyInstance) {
 
   // Dev login page (only in dev mode)
   if (env.AUTH_MODE === 'dev') {
-    app.get('/admin/login', async (_req, reply) => {
+    app.get('/admin/login', async (req, reply) => {
       const token = newCsrfToken();
+      // 允许 LobeChat 跳过来时预填 username：/admin/login?u=sa
+      const q = req.query as Record<string, string> | undefined;
+      const prefill = typeof q?.u === 'string' ? q.u.slice(0, 64) : '';
       reply
         .setCookie('admin_csrf', token, {
           path: '/',
@@ -201,7 +211,7 @@ export async function adminUiRoutes(app: FastifyInstance) {
           sameSite: 'strict',
         })
         .type('text/html')
-        .send(loginPage('', token));
+        .send(loginPage('', token, prefill));
     });
 
     app.post('/admin/login', async (req, reply) => {
@@ -216,7 +226,7 @@ export async function adminUiRoutes(app: FastifyInstance) {
           .send(loginPage('Invalid or missing csrf token', newCsrfToken()));
         return;
       }
-      let username: string | undefined = raw?.username;
+      const username: string | undefined = raw?.username;
       if (!username) {
         reply.type('text/html').send(loginPage('Username required', newCsrfToken()));
         return;
@@ -245,8 +255,17 @@ export async function adminUiRoutes(app: FastifyInstance) {
     const body = `
 <h1>Admin Dashboard</h1>
 <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:16px;margin-bottom:32px">
-  ${[['Users','/admin/users'],['Tools','/admin/tools'],['Scopes','/admin/scopes'],['Identity Map','/admin/identity-map'],['Audit Log','/admin/audit']]
-    .map(([label, href]) => `<a href="${href}" style="background:#fff;padding:24px;border-radius:8px;box-shadow:0 1px 4px rgba(0,0,0,.08);text-decoration:none;color:#1e293b;font-weight:600;font-size:15px;display:block;text-align:center">${label}</a>`)
+  ${[
+    ['Users', '/admin/users'],
+    ['Tools', '/admin/tools'],
+    ['Scopes', '/admin/scopes'],
+    ['Identity Map', '/admin/identity-map'],
+    ['Audit Log', '/admin/audit'],
+  ]
+    .map(
+      ([label, href]) =>
+        `<a href="${href}" style="background:#fff;padding:24px;border-radius:8px;box-shadow:0 1px 4px rgba(0,0,0,.08);text-decoration:none;color:#1e293b;font-weight:600;font-size:15px;display:block;text-align:center">${label}</a>`,
+    )
     .join('')}
 </div>
 <p style="color:#64748b;font-size:13px">Logged in as: <strong>${escHtml(req.auth?.username)}</strong> (${escHtml(req.auth?.roleKeys?.join(', '))})</p>

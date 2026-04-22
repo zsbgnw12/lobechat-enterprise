@@ -8,10 +8,12 @@
  * 菜单隐藏只是 UX 层，用户仍可手敲 URL 进设置子页。AdminOnly 把贴 URL
  * 进来的非管理员拦在外面。
  *
- * ## 这不是安全边界
- * 真正的安全边界是后端——LobeChat 后端的 provider / apiKey 修改接口
- * 目前没有角色校验，直接通过 tRPC 也能改。B′ 的下一阶段会给这些 router
- * 加 `adminOnly` middleware。前端守卫只是第一道墙。
+ * ## 安全边界
+ * 真正的安全边界是后端：`aiProvider` / `aiModel` 两个 router 的所有
+ * mutation 已经叠加 `requireEnterpriseAdmin` middleware（见
+ * `src/libs/trpc/lambda/middleware/requireEnterpriseAdmin.ts`），非管理员
+ * 直接调 tRPC 会得到 FORBIDDEN。前端守卫是用户体验层——把没权限的人拦在
+ * 页面外，避免他们看到半开半闭的表单；后端硬门控保证即使绕过 UI 也拦得住。
  */
 'use client';
 

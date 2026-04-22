@@ -11,7 +11,7 @@ import { AiModelModel } from '@/database/models/aiModel';
 import { UserModel } from '@/database/models/user';
 import { AiInfraRepos } from '@/database/repositories/aiInfra';
 import { authedProcedure, router } from '@/libs/trpc/lambda';
-import { serverDatabase } from '@/libs/trpc/lambda/middleware';
+import { requireEnterpriseAdmin, serverDatabase } from '@/libs/trpc/lambda/middleware';
 import { getServerGlobalConfig } from '@/server/globalConfig';
 import { KeyVaultsGateKeeper } from '@/server/modules/KeyVaultsEncrypt';
 import { type ProviderConfig } from '@/types/user/settings';
@@ -22,22 +22,31 @@ const aiModelProcedure = authedProcedure.use(serverDatabase).use(async (opts) =>
   const gateKeeper = await KeyVaultsGateKeeper.initWithEnvKey();
   const { aiProvider } = await getServerGlobalConfig();
 
+  // [enterprise-fork] 所有 model list 读写都走 admin vault
+  const { resolveEnterpriseProviderOwnerId } = await import('@/server/services/enterpriseRole');
+  const ownerId = await resolveEnterpriseProviderOwnerId(ctx.serverDB, ctx.userId);
   return opts.next({
     ctx: {
       aiInfraRepos: new AiInfraRepos(
         ctx.serverDB,
-        ctx.userId,
+        ownerId,
         aiProvider as Record<string, ProviderConfig>,
       ),
-      aiModelModel: new AiModelModel(ctx.serverDB, ctx.userId),
+      aiModelModel: new AiModelModel(ctx.serverDB, ownerId),
       gateKeeper,
       userModel: new UserModel(ctx.serverDB, ctx.userId),
     },
   });
 });
 
+/**
+ * [enterprise-fork] 只有企业管理员才能新增/修改/删除模型列表、顺序、启用状态。
+ * 普通用户只能通过 query 接口读取管理员已启用的模型。
+ */
+const aiModelAdminProcedure = aiModelProcedure.use(requireEnterpriseAdmin);
+
 export const aiModelRouter = router({
-  batchToggleAiModels: aiModelProcedure
+  batchToggleAiModels: aiModelAdminProcedure
     .input(
       z.object({
         enabled: z.boolean(),
@@ -48,7 +57,7 @@ export const aiModelRouter = router({
     .mutation(async ({ input, ctx }) => {
       return ctx.aiModelModel.batchToggleAiModels(input.id, input.models, input.enabled);
     }),
-  batchUpdateAiModels: aiModelProcedure
+  batchUpdateAiModels: aiModelAdminProcedure
     .input(
       z.object({
         id: z.string(),
@@ -60,22 +69,24 @@ export const aiModelRouter = router({
       return ctx.aiModelModel.batchUpdateAiModels(input.id, input.models);
     }),
 
-  clearModelsByProvider: aiModelProcedure
+  clearModelsByProvider: aiModelAdminProcedure
     .input(z.object({ providerId: z.string() }))
     .mutation(async ({ input, ctx }) => {
       return ctx.aiModelModel.clearModelsByProvider(input.providerId);
     }),
-  clearRemoteModels: aiModelProcedure
+  clearRemoteModels: aiModelAdminProcedure
     .input(z.object({ providerId: z.string() }))
     .mutation(async ({ input, ctx }) => {
       return ctx.aiModelModel.clearRemoteModels(input.providerId);
     }),
 
-  createAiModel: aiModelProcedure.input(CreateAiModelSchema).mutation(async ({ input, ctx }) => {
-    const data = await ctx.aiModelModel.create(input);
+  createAiModel: aiModelAdminProcedure
+    .input(CreateAiModelSchema)
+    .mutation(async ({ input, ctx }) => {
+      const data = await ctx.aiModelModel.create(input);
 
-    return data?.id;
-  }),
+      return data?.id;
+    }),
 
   getAiModelById: aiModelProcedure
     .input(z.object({ id: z.string() }))
@@ -103,19 +114,19 @@ export const aiModelRouter = router({
       });
     }),
 
-  removeAiModel: aiModelProcedure
+  removeAiModel: aiModelAdminProcedure
     .input(z.object({ id: z.string(), providerId: z.string() }))
     .mutation(async ({ input, ctx }) => {
       return ctx.aiModelModel.delete(input.id, input.providerId);
     }),
 
-  toggleModelEnabled: aiModelProcedure
+  toggleModelEnabled: aiModelAdminProcedure
     .input(ToggleAiModelEnableSchema)
     .mutation(async ({ input, ctx }) => {
       return ctx.aiModelModel.toggleModelEnabled(input);
     }),
 
-  updateAiModel: aiModelProcedure
+  updateAiModel: aiModelAdminProcedure
     .input(
       z.object({
         id: z.string(),
@@ -127,7 +138,7 @@ export const aiModelRouter = router({
       return ctx.aiModelModel.update(input.id, input.providerId, input.value);
     }),
 
-  updateAiModelOrder: aiModelProcedure
+  updateAiModelOrder: aiModelAdminProcedure
     .input(
       z.object({
         providerId: z.string(),

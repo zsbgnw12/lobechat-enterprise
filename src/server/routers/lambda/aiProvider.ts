@@ -5,7 +5,7 @@ import { AiProviderModel } from '@/database/models/aiProvider';
 import { UserModel } from '@/database/models/user';
 import { AiInfraRepos } from '@/database/repositories/aiInfra';
 import { authedProcedure, router } from '@/libs/trpc/lambda';
-import { serverDatabase } from '@/libs/trpc/lambda/middleware';
+import { requireEnterpriseAdmin, serverDatabase } from '@/libs/trpc/lambda/middleware';
 import { getServerGlobalConfig } from '@/server/globalConfig';
 import { KeyVaultsGateKeeper } from '@/server/modules/KeyVaultsEncrypt';
 import { initModelRuntimeFromDB } from '@/server/modules/ModelRuntime';
@@ -23,22 +23,34 @@ const aiProviderProcedure = authedProcedure.use(serverDatabase).use(async (opts)
   const { aiProvider } = await getServerGlobalConfig();
 
   const gateKeeper = await KeyVaultsGateKeeper.initWithEnvKey();
+  // [enterprise-fork] 所有 provider config 读写都走 admin vault，让管理员在
+  // UI 里配的 provider（Google + taijiai URL + key 等）对所有用户生效。
+  // 写操作由下面的 aiProviderAdminProcedure 额外叠加 requireEnterpriseAdmin 拦截。
+  const { resolveEnterpriseProviderOwnerId } = await import('@/server/services/enterpriseRole');
+  const ownerId = await resolveEnterpriseProviderOwnerId(ctx.serverDB, ctx.userId);
   return opts.next({
     ctx: {
       aiInfraRepos: new AiInfraRepos(
         ctx.serverDB,
-        ctx.userId,
+        ownerId,
         aiProvider as Record<string, ProviderConfig>,
       ),
-      aiProviderModel: new AiProviderModel(ctx.serverDB, ctx.userId),
+      aiProviderModel: new AiProviderModel(ctx.serverDB, ownerId),
       gateKeeper,
+      // userModel 仍用调用者 userId（个人资料用）
       userModel: new UserModel(ctx.serverDB, ctx.userId),
     },
   });
 });
 
+/**
+ * [enterprise-fork] 只有企业管理员（super_admin / permission_admin）才能
+ * 增删改 provider 配置 / API key / endpoint。普通用户调用会被 FORBIDDEN 拒。
+ */
+const aiProviderAdminProcedure = aiProviderProcedure.use(requireEnterpriseAdmin);
+
 export const aiProviderRouter = router({
-  checkProviderConnectivity: aiProviderProcedure
+  checkProviderConnectivity: aiProviderAdminProcedure
     .input(
       z.object({
         id: z.string(),
@@ -85,7 +97,7 @@ export const aiProviderRouter = router({
       }
     }),
 
-  createAiProvider: aiProviderProcedure
+  createAiProvider: aiProviderAdminProcedure
     .input(CreateAiProviderSchema)
     .mutation(async ({ input, ctx }) => {
       try {
@@ -120,13 +132,13 @@ export const aiProviderRouter = router({
       return ctx.aiInfraRepos.getAiProviderRuntimeState(KeyVaultsGateKeeper.getUserKeyVaults);
     }),
 
-  removeAiProvider: aiProviderProcedure
+  removeAiProvider: aiProviderAdminProcedure
     .input(z.object({ id: z.string() }))
     .mutation(async ({ input, ctx }) => {
       return ctx.aiProviderModel.delete(input.id);
     }),
 
-  toggleProviderEnabled: aiProviderProcedure
+  toggleProviderEnabled: aiProviderAdminProcedure
     .input(
       z.object({
         enabled: z.boolean(),
@@ -137,7 +149,7 @@ export const aiProviderRouter = router({
       return ctx.aiProviderModel.toggleProviderEnabled(input.id, input.enabled);
     }),
 
-  updateAiProvider: aiProviderProcedure
+  updateAiProvider: aiProviderAdminProcedure
     .input(
       z.object({
         id: z.string(),
@@ -148,7 +160,7 @@ export const aiProviderRouter = router({
       return ctx.aiProviderModel.update(input.id, input.value);
     }),
 
-  updateAiProviderConfig: aiProviderProcedure
+  updateAiProviderConfig: aiProviderAdminProcedure
     .input(
       z.object({
         id: z.string(),
@@ -164,7 +176,7 @@ export const aiProviderRouter = router({
       );
     }),
 
-  updateAiProviderOrder: aiProviderProcedure
+  updateAiProviderOrder: aiProviderAdminProcedure
     .input(
       z.object({
         sortMap: z.array(

@@ -35,6 +35,7 @@ import { ThreadStatus, ThreadType } from '@lobechat/types';
 import { nanoid } from '@lobechat/utils';
 import debug from 'debug';
 
+import { ENTERPRISE_TOOL_MANIFESTS, toolKeyToIdentifier } from '@/const/enterpriseTools';
 import { AgentModel } from '@/database/models/agent';
 import { AgentSkillModel } from '@/database/models/agentSkill';
 import { AiModelModel } from '@/database/models/aiModel';
@@ -61,6 +62,7 @@ import { getAbortError, isAbortError, throwIfAborted } from '@/server/services/a
 import { type AgentHook } from '@/server/services/agentRuntime/hooks/types';
 import { type StepLifecycleCallbacks } from '@/server/services/agentRuntime/types';
 import { DocumentService } from '@/server/services/document';
+import { getEnterpriseVisibleToolKeys } from '@/server/services/enterpriseRole';
 import { FileService } from '@/server/services/file';
 import { KlavisService } from '@/server/services/klavis';
 import { MarketService } from '@/server/services/market';
@@ -595,6 +597,36 @@ export class AiAgentService {
       }
       log('execAgent: got %d klavis manifests', klavisManifests.length);
 
+      // [enterprise-fork] 5d.1 按 Gateway 授权过滤 17 件套 —— 只给本人有权的
+      // 那些工具生成 function schema，防止模型调到 403 被拒的工具。
+      // 未识别身份或 Gateway 不通 → 空数组 → 企业工具全屏蔽。
+      const enterpriseVisibleToolKeys = await getEnterpriseVisibleToolKeys(
+        this.serverDB,
+        this.userId,
+      );
+      const enterpriseVisibleIdentifiers = new Set(
+        enterpriseVisibleToolKeys.map((k) => toolKeyToIdentifier(k)),
+      );
+      const filteredEnterpriseManifests = ENTERPRISE_TOOL_MANIFESTS.filter((m) =>
+        enterpriseVisibleIdentifiers.has(m.identifier),
+      );
+      const filteredEnterpriseIdentifiers = ENTERPRISE_TOOL_IDENTIFIERS.filter((id) =>
+        enterpriseVisibleIdentifiers.has(id),
+      );
+      log(
+        'execAgent: enterprise tools filtered by role: %d/%d visible',
+        filteredEnterpriseManifests.length,
+        ENTERPRISE_TOOL_MANIFESTS.length,
+      );
+      // eslint-disable-next-line no-console
+      console.log(
+        '[enterprise-aiAgent] visibleKeys=%d filteredManifests=%d filteredIdentifiers=%d sample=%o',
+        enterpriseVisibleToolKeys.length,
+        filteredEnterpriseManifests.length,
+        filteredEnterpriseIdentifiers.length,
+        filteredEnterpriseIdentifiers.slice(0, 3),
+      );
+
       await throwIfExecutionAborted('tool discovery');
 
       // 5e. Create tools using Server AgentToolsEngine
@@ -633,11 +665,19 @@ export class AiAgentService {
 
       // Dynamically inject topic-reference tool when prompt contains <refer_topic> tags
       const hasTopicReference = /refer_topic/.test(prompt ?? '');
-      agentPlugins = [
-        ...agentPlugins,
-        ...(hasTopicReference ? ['lobe-topic-reference'] : []),
-        ...(isBotConversation ? [MessageToolIdentifier] : []),
-      ];
+      agentPlugins = Array.from(
+        new Set([
+          ...agentPlugins,
+          ...(hasTopicReference ? ['lobe-topic-reference'] : []),
+          ...(isBotConversation ? [MessageToolIdentifier] : []),
+          // [enterprise-fork] 把当前身份可见的企业工具塞进 agent.plugins，
+          // 这样 createEnableChecker 的 rules 里会把它们标记为 enabled，
+          // 否则 ToolsEngine 找到 manifest 也会因为"未启用"被过滤掉，
+          // 模型就看不到 function schema。去重：如果 agent DB 里已保存了
+          // 某个 enterprise identifier，避免重复。
+          ...filteredEnterpriseIdentifiers,
+        ]),
+      );
 
       // Derive activeDeviceId from device context:
       // 1. If this run explicitly requested a device and that device is online, use it
@@ -653,7 +693,15 @@ export class AiAgentService {
           : undefined;
 
       const toolsEngine = createServerAgentToolsEngine(toolsContext, {
-        additionalManifests: [...lobehubSkillManifests, ...klavisManifests],
+        // [enterprise-fork] 按 Gateway 身份过滤后的企业工具 manifest——只给
+        // 当前用户真正有权限的那批工具生成 function schema。模型看不到没权
+        // 限的工具，也就不会误调到 403 被拒。后端 BuiltinToolsExecutor 会按
+        // identifier 前缀分发到 Gateway。
+        additionalManifests: [
+          ...filteredEnterpriseManifests,
+          ...lobehubSkillManifests,
+          ...klavisManifests,
+        ],
         agentConfig: {
           chatConfig: agentConfig.chatConfig ?? undefined,
           plugins: agentPlugins,
@@ -685,6 +733,9 @@ export class AiAgentService {
         // Include LobeHub Skills and Klavis tools so they are passed to generateToolsDetailed
         ...lobehubSkillManifests.map((m) => m.identifier),
         ...klavisManifests.map((m) => m.identifier),
+        // [enterprise-fork] 只加本人可见的企业工具 identifier 到 pluginIds。
+        // 这样 generateToolsDetailed 的输出 tools[] 只含当前身份能用的那批。
+        ...filteredEnterpriseIdentifiers,
       ];
       log('execAgent: agent configured plugins: %O', pluginIds);
 
@@ -700,6 +751,13 @@ export class AiAgentService {
       tools = toolsResult.tools;
 
       log('execAgent: enabled tool ids: %O', toolsResult.enabledToolIds);
+      // eslint-disable-next-line no-console
+      console.log(
+        '[enterprise-aiAgent] tools count=%d enabledIds=%d enterprise enabled=%d',
+        tools?.length ?? 0,
+        toolsResult.enabledToolIds.length,
+        toolsResult.enabledToolIds.filter((id) => id.startsWith('enterprise-')).length,
+      );
 
       // Start with the scoped manifest map (pluginIds + defaultToolIds)
       const manifestMap = toolsEngine.getEnabledPluginManifests(pluginIds);
@@ -734,6 +792,10 @@ export class AiAgentService {
       }
       for (const manifest of klavisManifests) {
         toolSourceMap[manifest.identifier] = 'klavis';
+      }
+      // [enterprise-fork] 已过滤的企业 Gateway 工具的 source 标记。
+      for (const manifest of filteredEnterpriseManifests) {
+        toolSourceMap[manifest.identifier] = 'builtin';
       }
 
       // Mark tools that must run on the client (desktop Electron) because they

@@ -144,9 +144,96 @@ async function fetchGatewayRole(gatewayUrl: string, username: string): Promise<E
   }
 }
 
+// ─── 可见工具列表缓存 ───────────────────────────────────────────────────
+// Gateway `/api/lobechat/manifest` 已经按身份返回 user 能用的工具子集。
+// 我们在此层 5min 缓存，避免前端每次 poll 都打 Gateway。
+
+const toolsCache = new Map<string, { at: number; keys: string[] }>();
+
+const normalizeToolName = (name: string): string => name.replaceAll('__', '.');
+
+/**
+ * 返回指定 LobeChat user 当前能用的 Gateway 工具 keys（如 ["kb.search",
+ * "gongdan.search_tickets", ...]）。
+ * 永不抛异常——Gateway 不通 / 身份未识别 → 空数组。
+ */
+export async function getEnterpriseVisibleToolKeys(
+  db: LobeChatDatabase,
+  lobechatUserId: string,
+): Promise<string[]> {
+  if (!lobechatUserId) return [];
+
+  const hit = toolsCache.get(lobechatUserId);
+  if (hit && Date.now() - hit.at < CACHE_TTL_MS) return hit.keys;
+
+  // 先通过 role 解析拿 username（也会触发 role 缓存写入）
+  const role = await getEnterpriseRole(db, lobechatUserId);
+  if (!role.username) {
+    toolsCache.set(lobechatUserId, { at: Date.now(), keys: [] });
+    return [];
+  }
+
+  const gatewayUrl = process.env.GATEWAY_INTERNAL_URL || 'http://localhost:3001';
+  try {
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), 2000);
+    const resp = await fetch(`${gatewayUrl}/api/lobechat/manifest`, {
+      headers: { 'X-Dev-User': role.username },
+      signal: ctrl.signal,
+    });
+    clearTimeout(timer);
+    if (!resp.ok) {
+      toolsCache.set(lobechatUserId, { at: Date.now(), keys: [] });
+      return [];
+    }
+    const body = (await resp.json()) as { api?: Array<{ name: string }> };
+    const keys = (body.api ?? []).map((a) => normalizeToolName(a.name));
+    log('gateway visible tools for %s: %o', role.username, keys);
+    toolsCache.set(lobechatUserId, { at: Date.now(), keys });
+    return keys;
+  } catch (err) {
+    log('visible tools fetch failed for %s: %O', role.username, err);
+    toolsCache.set(lobechatUserId, { at: Date.now(), keys: [] });
+    return [];
+  }
+}
+
 /**
  * 强制让指定 user 的缓存失效（例如 admin 在 Gateway 侧改了某人的角色）。
  */
 export function invalidateEnterpriseRoleCache(lobechatUserId: string): void {
   cache.delete(lobechatUserId);
+  toolsCache.delete(lobechatUserId);
+}
+
+// ─── Enterprise provider owner (管理员 userId) ─────────────────────────
+// 所有"provider/model 配置" 的查询都走 sa 的 vault —— 管理员在 UI 里配了
+// 什么，所有用户共享。见 aiProvider router / aiModel router / ModelRuntime。
+//
+// 管理员邮箱通过 env `ENTERPRISE_ADMIN_EMAIL` 指定，默认 `sa@enterprise.local`。
+// 查不到管理员时退回 fallbackUserId（通常是当前调用者）。
+
+const adminIdCache: { at: number; id: string | null } = { at: 0, id: null };
+const ADMIN_ID_TTL_MS = 60 * 1000;
+
+export async function resolveEnterpriseProviderOwnerId(
+  db: LobeChatDatabase,
+  fallbackUserId: string,
+): Promise<string> {
+  const now = Date.now();
+  if (adminIdCache.id && now - adminIdCache.at < ADMIN_ID_TTL_MS) {
+    return adminIdCache.id;
+  }
+  const adminEmail = process.env.ENTERPRISE_ADMIN_EMAIL || 'sa@enterprise.local';
+  try {
+    const user = await UserModel.findByEmail(db, adminEmail);
+    if (user?.id) {
+      adminIdCache.id = user.id;
+      adminIdCache.at = now;
+      return user.id;
+    }
+  } catch (err) {
+    log('resolveEnterpriseProviderOwnerId failed: %O', err);
+  }
+  return fallbackUserId;
 }

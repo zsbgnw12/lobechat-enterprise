@@ -2,6 +2,12 @@ import { type ChildProcess, spawn } from 'node:child_process';
 import dotenv from 'dotenv';
 import net from 'node:net';
 
+// [enterprise-fork] 本地 dev 必须先读 .env.local 且 override 掉 .env 的值。
+// 例：.env 里 `GATEWAY_INTERNAL_URL=http://gateway:3001` 是给 docker 容器用的；
+// .env.local 里改成 `http://localhost:3001` 是 Windows/mac host 跑 pnpm dev
+// 的正确值。默认 dotenv.config() 只读 .env 且 override=false，导致 host 上
+// 跑出来的进程还在调 docker 内部名字，角色拉取永远空，管理员菜单不出来。
+dotenv.config({ override: true, path: '.env.local' });
 dotenv.config();
 
 const NEXT_HOST = 'localhost';

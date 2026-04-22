@@ -74,7 +74,13 @@ const ProviderPage = (props: ProviderPageType) => {
   // For mobile or when used via SettingsContent, use the old Page component
   // This is a fallback for non-router usage
   const OldPage = require('./(list)').default;
-  return <OldPage mobile={mobile} />;
+  // [enterprise-fork] 同样用 AdminOnly 包住，阻止 /settings?tab=provider
+  // 或移动端等非路由入口绕过
+  return (
+    <AdminOnly>
+      <OldPage mobile={mobile} />
+    </AdminOnly>
+  );
 };
 
 export default ProviderPage;

@@ -11,7 +11,9 @@ import isEqual from 'fast-deep-equal';
 import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 
+import { ENTERPRISE_TOOL_PREFIX, toolKeyToIdentifier } from '@/const/enterpriseTools';
 import { useCheckPluginsIsInstalled } from '@/hooks/useCheckPluginsIsInstalled';
+import { useEnterpriseVisibleTools } from '@/hooks/useEnterpriseRole';
 import { useFetchInstalledPlugins } from '@/hooks/useFetchInstalledPlugins';
 import { useAgentStore } from '@/store/agent';
 import { agentByIdSelectors, chatConfigByIdSelectors } from '@/store/agent/selectors';
@@ -53,12 +55,22 @@ export const useControls = ({ setUpdating }: { setUpdating: (updating: boolean) 
   const isManualSkillMode = useAgentStore(
     (s) => chatConfigByIdSelectors.getSkillActivateModeById(agentId)(s) === 'manual',
   );
-  const builtinList = useToolStore(
+  const rawBuiltinList = useToolStore(
     isManualSkillMode
       ? builtinToolSelectors.metaListIncludingHidden
       : builtinToolSelectors.metaList,
     isEqual,
   );
+  // [enterprise-fork] 按当前用户在 Gateway 里的授权过滤企业工具 —— selectors
+  // 把 17 个 meta 全塞进来，这里再根据 visibleKeys 收窄。非企业工具不受影响。
+  const visibleToolKeys = useEnterpriseVisibleTools();
+  const builtinList = useMemo(() => {
+    const allowed = new Set(visibleToolKeys.map((k) => toolKeyToIdentifier(k)));
+    return rawBuiltinList.filter((item) => {
+      if (!item.identifier.startsWith(ENTERPRISE_TOOL_PREFIX)) return true;
+      return allowed.has(item.identifier);
+    });
+  }, [rawBuiltinList, visibleToolKeys]);
   const plugins = useAgentStore((s) => agentByIdSelectors.getAgentPluginsById(agentId)(s));
 
   // Klavis-related state

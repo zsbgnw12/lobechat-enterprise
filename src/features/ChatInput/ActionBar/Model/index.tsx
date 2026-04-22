@@ -58,7 +58,10 @@ const ModelSwitch = memo(() => {
   const { t } = useTranslation('chat');
   const { dropdownPlacement } = useActionBarContext();
   const isDevMode = useUserStore((s) => userGeneralSettingsSelectors.config(s).isDevMode);
-  // [enterprise-fork] 普通用户不能自己切换模型——只用管理员为 Agent 预配好的
+  // [enterprise-fork] 所有用户（包括普通用户）都可以在对话框切换模型，
+  // 下拉内容是管理员启用的集合（严格来自 ai_models.enabled=true，见
+  // packages/database/src/repositories/aiInfra/index.ts 的 enterprise-fork 改动）。
+  // `isAdmin` 现在只用于控制 DevMode 下才显示的高级参数面板入口。
   const isAdmin = useIsAdmin();
 
   const agentId = useAgentId();
@@ -80,17 +83,6 @@ const ModelSwitch = memo(() => {
     },
     [agentId, updateAgentConfigById],
   );
-
-  // 非管理员：只显示当前模型图标，不可点击切换
-  if (!isAdmin) {
-    return (
-      <Center className={styles.model} height={36} width={36}>
-        <div className={styles.icon}>
-          <ModelIcon model={model} size={22} />
-        </div>
-      </Center>
-    );
-  }
 
   return (
     <Flexbox horizontal align={'center'} className={showExtendParams ? styles.container : ''}>

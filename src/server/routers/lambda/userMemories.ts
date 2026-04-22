@@ -1283,8 +1283,16 @@ export const userMemoriesRouter = router({
     }),
 
   toolSearchMemory: memoryProcedure.input(searchMemorySchema).query(async ({ input, ctx }) => {
-    const result = await searchUserMemories(ctx, input);
-    return result;
+    // [enterprise-fork] memory 搜索依赖 embedding endpoint；企业聚合平台可能
+    // 不提供 /v1/embeddings，失败时 fail-silent 返回空结果，不阻塞聊天主流程。
+    // 其它两个 memory 搜索方法（searchMemory / retrieveMemoryForTopic）也是
+    // try/catch + EMPTY_SEARCH_RESULT 模式。
+    try {
+      return await searchUserMemories(ctx, input);
+    } catch (error) {
+      console.error('toolSearchMemory failed (embedding provider unavailable?):', error);
+      return EMPTY_SEARCH_RESULT;
+    }
   }),
 
   toolUpdateIdentityMemory: memoryProcedure

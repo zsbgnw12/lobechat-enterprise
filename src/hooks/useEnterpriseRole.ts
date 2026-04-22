@@ -57,3 +57,30 @@ export const useEnterpriseRole = (): EnterpriseRoleSnapshot => {
 export const useIsAdmin = (): boolean => useEnterpriseRole().isAdmin;
 
 export const useHasRole = (roleKey: string): boolean => useEnterpriseRole().roles.includes(roleKey);
+
+/**
+ * 返回当前用户可见的 Gateway 工具 key 列表（如 ["kb.search", ...]）。
+ * 用于前端工具面板按身份过滤 17 件套。
+ *
+ * 未登录 / 未识别企业身份 / Gateway 不通 → 空数组（对普通 LobeChat 用户
+ * 意味着"没有企业工具"，只剩原生 builtin）。
+ */
+const EMPTY_TOOL_KEYS: string[] = [];
+export const useEnterpriseVisibleTools = (): string[] => {
+  const { data } = useSWR<string[]>(
+    'enterprise-role/my-visible-tools',
+    async () => {
+      try {
+        const r = await lambdaClient.enterpriseRole.getMyVisibleTools.query();
+        return Array.isArray(r) ? r : [];
+      } catch {
+        return [];
+      }
+    },
+    {
+      dedupingInterval: FIVE_MIN_MS,
+      revalidateOnFocus: false,
+    },
+  ) as SWRResponse<string[]>;
+  return data ?? EMPTY_TOOL_KEYS;
+};

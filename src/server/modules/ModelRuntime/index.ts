@@ -18,6 +18,7 @@ import { getBusinessModelRuntimeHooks } from '@/business/server/model-runtime';
 import { AiProviderModel } from '@/database/models/aiProvider';
 import { type LobeChatDatabase } from '@/database/type';
 import { getLLMConfig } from '@/envs/llm';
+import { resolveEnterpriseProviderOwnerId } from '@/server/services/enterpriseRole';
 
 import { KeyVaultsGateKeeper } from '../KeyVaultsEncrypt';
 import apiKeyManager from './apiKeyManager';
@@ -181,6 +182,15 @@ const getParamsFromPayload = (provider: string, payload: ClientSecretPayload) =>
         upperProvider = ModelProvider.OpenAI.toUpperCase(); // Use OpenAI options as default
       }
 
+      // [enterprise-fork] 优先用管理员 vault 里配置的 key / baseURL，vault 为空
+      // 时回退到 env (`{UPPER}_API_KEY` / `{UPPER}_PROXY_URL`)。env 在本部署里
+      // 是**刻意**的默认凭据种子（`.env.local` 里的 `OPENAI_API_KEY` +
+      // `OPENAI_PROXY_URL=https://api.taijiaicloud.com/v1`），管理员没在 UI 里
+      // 覆盖时走 env 是正常行为。
+      //
+      // 注意：`initModelRuntimeFromDB` 入口仍要求管理员 vault 里至少**存在**
+      // 这条 provider 的 DB 行（不存在会抛错），所以 env fallback 只在"有行
+      // 但字段空"时兜底，不会让任意未注册 provider 偷偷用上 env。
       const apiKey = apiKeyManager.pick(payload?.apiKey || llmConfig[`${upperProvider}_API_KEY`]);
       const baseURL = payload?.baseURL || process.env[`${upperProvider}_PROXY_URL`];
 
@@ -403,7 +413,9 @@ export const initModelRuntimeFromDB = async (
   provider: string,
 ): Promise<ModelRuntime> => {
   // 1. Get user's provider configuration from database
-  const aiProviderModel = new AiProviderModel(db, userId);
+  // [enterprise-fork] provider config 从管理员 vault 读，不是请求用户自己的
+  const providerOwnerId = await resolveEnterpriseProviderOwnerId(db, userId);
+  const aiProviderModel = new AiProviderModel(db, providerOwnerId);
 
   // Use getAiProviderById with KeyVaultsGateKeeper.getUserKeyVaults as decryptor
   const providerConfig = await aiProviderModel.getAiProviderById(
@@ -411,6 +423,23 @@ export const initModelRuntimeFromDB = async (
     KeyVaultsGateKeeper.getUserKeyVaults,
   );
 
+  // [enterprise-fork] providerConfig 为空表示管理员 vault 里没这条 DB 行，
+  // 但 env 里可能仍有这条 provider 的默认凭据（`.env.local` 的
+  // OPENAI_API_KEY + OPENAI_PROXY_URL 即本部署的设计）。不在这里硬抛错，
+  // 让下游 getParamsFromPayload 走 env fallback。admin 只有在 UI 里主动
+  // 覆盖时才会写 DB 行。
+  //
+  // **但** 如果 DB 行存在且 `enabled=false`（admin 显式关了这个 provider），
+  // 直接拒绝 —— 不能让禁用的 provider 被绕过去用 env fallback 继续打请求。
+  // 典型场景：sa 在 UI 里把 Anthropic 关了,但 sales1 的 inbox agent 行 provider
+  // 还是 anthropic,没有这个拦截就会继续打到坏链路。
+  if (providerConfig && (providerConfig as any).enabled === false) {
+    throw new Error(
+      `[enterprise] Provider "${provider}" is disabled by the administrator. ` +
+        `Please select a different provider, or ask an admin to enable it.`,
+    );
+  }
+  //
   // 2. Resolve the runtime provider for custom providers
   // For custom providers, use sdkType from settings (defaults to 'openai')
   const sdkType = providerConfig?.settings?.sdkType;
@@ -420,6 +449,14 @@ export const initModelRuntimeFromDB = async (
   // This ensures provider-specific fields (e.g., cloudflareBaseURLOrAccountID) are included
   const keyVaults = (providerConfig?.keyVaults || {}) as ProviderKeyVaults;
   const payload = buildPayloadFromKeyVaults(keyVaults, runtimeProvider);
+  // eslint-disable-next-line no-console
+  console.log(
+    '[model-runtime] user=%s provider=%s runtime=%s vaultHasKey=%s',
+    userId,
+    provider,
+    runtimeProvider,
+    !!(keyVaults as any)?.apiKey,
+  );
 
   // 4. Get business hooks (billing in cloud, undefined in OSS)
   const hooks = getBusinessModelRuntimeHooks(userId, provider);

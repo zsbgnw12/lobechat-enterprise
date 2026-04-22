@@ -149,11 +149,12 @@ export class AiInfraRepos {
     // 1. First create a mapping based on DEFAULT_MODEL_PROVIDER_LIST id order
     const orderMap = new Map(DEFAULT_MODEL_PROVIDER_LIST.map((item, index) => [item.id, index]));
 
+    // [enterprise-fork] provider 的启用状态**只**来自管理员 DB 行 (`ai_providers`)。
+    // 旧代码用 `db-enabled OR env-enabled` 合并，会让 `ENABLED_OPENAI=1` 之类的
+    // env 强行把 provider 显示为已启用，绕过 admin 在 UI 里关的开关。
     const builtinProviders = DEFAULT_MODEL_PROVIDER_LIST.map((item) => ({
       description: item.description,
-      enabled:
-        userProviders.some((provider) => provider.id === item.id && provider.enabled) ||
-        this.providerConfigs[item.id]?.enabled,
+      enabled: userProviders.some((provider) => provider.id === item.id && provider.enabled),
       id: item.id,
       name: item.name,
       source: 'builtin',
@@ -206,10 +207,16 @@ export class AiInfraRepos {
             const user = allModels.find((m) => m.id === item.id && m.providerId === provider.id);
 
             // User hasn't modified local model
+            // [enterprise-fork] 严格模式：builtin 模型默认的 `enabled:true` 不再
+            // 透传到聊天面板。只有管理员在 Admin UI 里显式开过"启用"开关
+            // （此时会 upsert 一条 ai_models 行）才算数。单一事实源 = DB。
+            // Admin ModelList 页不受影响：那里调的是 getAiProviderModelList，
+            // 返回 builtin ∪ aiModels 的并集让 admin 知道有哪些可开。
             if (!user)
               return injectSearchSettings(provider.id, {
                 ...item,
                 abilities: item.abilities || {},
+                enabled: false,
                 providerId: provider.id,
               });
 
@@ -407,6 +414,14 @@ export class AiInfraRepos {
       (await this.fetchBuiltinModels(providerId)) || [];
     // Not modifying search settings here doesn't affect usage, but done for data consistency on get
     let mergedModel = mergeArrayById(defaultModels, aiModels) as AiProviderModelListItem[];
+
+    // [enterprise-fork] 严格模式：Model 管理页（admin UI）里每个开关的状态也
+    // **只**反映 DB。builtin / env 里带的 `enabled:true` 默认值不再让没被 admin
+    // 显式 toggle 过的模型视觉上"看着像开"。效果：admin 打开 Model 列表时
+    // 所有没点过的模型都显示为关；admin 点一次 → 写 DB 行 → 显示为开,同时
+    // 聊天面板开始出现该模型。视觉 = DB = picker,三者严格一致。
+    const aiModelKeys = new Set(aiModels.map((m) => m.id));
+    mergedModel = mergedModel.map((m) => (aiModelKeys.has(m.id) ? m : { ...m, enabled: false }));
 
     // Model type (chat/video/image/embedding/tts/stt) should always come from builtin config,
     // because remote-fetched models from provider API (e.g. OpenAI /v1/models) don't return

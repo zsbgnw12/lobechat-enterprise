@@ -584,6 +584,11 @@ export class AgentModel {
     if (!persistConfig) return null;
 
     // 4. Create the builtin agent with persist config
+    // Use ON CONFLICT DO NOTHING to handle concurrent initial-load races where
+    // two parallel tRPC queries both pass the existence check above and then
+    // both try to insert. Without this, the second insert violates the
+    // `agents_slug_user_id_unique` constraint with Postgres error 23505.
+    // If nothing was inserted (conflict), re-fetch the winner.
     const result = await this.db
       .insert(agents)
       .values({
@@ -593,8 +598,15 @@ export class AgentModel {
         userId: this.userId,
         virtual: true,
       })
+      .onConflictDoNothing({ target: [agents.slug, agents.userId] })
       .returning();
 
-    return result[0];
+    if (result[0]) return result[0];
+
+    // Conflict: another concurrent call already inserted the row. Fetch it.
+    const winner = await this.db.query.agents.findFirst({
+      where: and(eq(agents.slug, slug), eq(agents.userId, this.userId)),
+    });
+    return winner ?? null;
   };
 }

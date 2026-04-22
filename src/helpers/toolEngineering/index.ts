@@ -11,6 +11,7 @@ import { createEnableChecker, type PluginEnableChecker } from '@lobechat/context
 import { ToolsEngine } from '@lobechat/context-engine';
 import { type ChatCompletionTool, type ToolManifest, type WorkingModel } from '@lobechat/types';
 
+import { ENTERPRISE_TOOL_IDENTIFIERS, ENTERPRISE_TOOL_MANIFESTS } from '@/const/enterpriseTools';
 import { isToolAvailableInCurrentEnv } from '@/helpers/toolAvailability';
 import { getAgentStoreState } from '@/store/agent';
 import { agentChatConfigSelectors, agentSelectors } from '@/store/agent/selectors';
@@ -99,6 +100,10 @@ export const createToolsEngine = (config: ToolsEngineConfig = {}): ToolsEngine =
     .map((tool) => tool.manifest as ToolManifest)
     .filter(Boolean);
 
+  // [enterprise-fork] 注入 18 个企业 Gateway 工具 manifest 到 client-side
+  // ToolsEngine。这是模型实际看到的 function schema 来源——LobeChat 这版
+  // chat 走 client AgentRuntime，server 侧 aiAgent.execAgent 不在路径上。
+  // 用户身份过滤由 enableChecker rules 在 createAgentToolsEngine 里做。
   // Combine all manifests, dropping entries that would crash ToolsEngine.
   // Each source is filtered separately so the warning pinpoints the origin.
   const allManifests = [
@@ -106,6 +111,7 @@ export const createToolsEngine = (config: ToolsEngineConfig = {}): ToolsEngine =
     ...dropInvalidManifests(builtinManifests, 'builtinTools'),
     ...dropInvalidManifests(klavisManifests, 'klavis'),
     ...dropInvalidManifests(lobehubSkillManifests, 'lobehubSkills'),
+    ...dropInvalidManifests(ENTERPRISE_TOOL_MANIFESTS, 'enterpriseTools'),
     ...dropInvalidManifests(additionalManifests, 'additionalManifests'),
   ];
 
@@ -152,6 +158,11 @@ export const createAgentToolsEngine = (
         ...Object.fromEntries(userPlugins.map((id) => [id, true])),
         // Always-on builtin tools
         ...Object.fromEntries(alwaysOnToolIds.map((id) => [id, true])),
+        // [enterprise-fork] 18 个企业 Gateway 工具 always-on（前端先全开放，
+        // 后端 Gateway 调用时按角色 403 拦截）。如需精细前端过滤，未来通过
+        // 一个 store slice 缓存 useEnterpriseVisibleTools 返回值，再这里
+        // 取交集即可。
+        ...Object.fromEntries(ENTERPRISE_TOOL_IDENTIFIERS.map((id) => [id, true])),
         // System-level rules (may override user selection for specific tools)
         [CloudSandboxManifest.identifier]:
           agentChatConfigSelectors.isCloudSandboxEnabled(agentState),

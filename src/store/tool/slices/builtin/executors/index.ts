@@ -18,6 +18,7 @@ import { localSystemExecutor } from '@lobechat/builtin-tool-local-system/executo
 import { memoryExecutor } from '@lobechat/builtin-tool-memory/executor';
 
 import type { BuiltinToolContext, BuiltinToolResult, IBuiltinToolExecutor } from '../types';
+import { enterpriseExecutors } from './enterprise';
 import { activatorExecutor } from './lobe-activator';
 import { agentDocumentsExecutor } from './lobe-agent-documents';
 import { messageExecutor } from './lobe-message';
@@ -155,4 +156,7 @@ registerExecutors([
   userInteractionExecutor,
   webOnboardingExecutor,
   webBrowsing,
+  // [enterprise-fork] 18 个企业 Gateway 工具 —— 客户端 wrapper 转发到
+  // /api/enterprise/tool-execute
+  ...enterpriseExecutors,
 ]);
