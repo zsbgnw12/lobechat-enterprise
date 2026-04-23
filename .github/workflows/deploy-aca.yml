@@ -20,7 +20,7 @@ permissions:
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 60
 
     steps:
       - name: Checkout
@@ -31,50 +31,54 @@ jobs:
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
 
-      # --- Build in ACR (cloud-side, cached) ---
-      - name: Build & push image with ACR Tasks
-        run: |
-          az acr build \
-            --registry "$ACR_NAME" \
-            --image "$IMAGE_NAME:${{ github.sha }}" \
-            --image "$IMAGE_NAME:latest" \
-            --file Dockerfile \
-            --build-arg USE_CN_MIRROR=true \
-            .
+      - name: Login to ACR
+        run: az acr login --name $ACR_NAME
 
-      # --- Deploy to Container Apps ---
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      # Build on GitHub runner (16 GB RAM) — ACR default agent OOMs on
+      # LobeChat next build (needs ~6 GB). Push finished image to ACR.
+      - name: Build & push image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: Dockerfile
+          push: true
+          tags: |
+            ${{ env.ACR_NAME }}.azurecr.io/${{ env.IMAGE_NAME }}:${{ github.sha }}
+            ${{ env.ACR_NAME }}.azurecr.io/${{ env.IMAGE_NAME }}:latest
+          build-args: |
+            USE_CN_MIRROR=true
+          cache-from: type=registry,ref=${{ env.ACR_NAME }}.azurecr.io/${{ env.IMAGE_NAME }}:buildcache
+          cache-to: type=registry,ref=${{ env.ACR_NAME }}.azurecr.io/${{ env.IMAGE_NAME }}:buildcache,mode=max
+          platforms: linux/amd64
+
       - name: Deploy to Container Apps
         id: deploy
         env:
-          # Secrets from GitHub → ACA secrets
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
           KEY_VAULTS_SECRET: ${{ secrets.KEY_VAULTS_SECRET }}
           AUTH_SECRET: ${{ secrets.AUTH_SECRET }}
           CASDOOR_ID: ${{ secrets.CASDOOR_ID }}
           CASDOOR_SECRET: ${{ secrets.CASDOOR_SECRET }}
-          # Public (non-secret) config
           CASDOOR_ISSUER: https://casdoor.ashyglacier-8207efd2.eastasia.azurecontainerapps.io
           CHAT_GW_URL: https://gaw-chat-tools-d0dhb6h2hwbac2ev.southeastasia-01.azurewebsites.net
         run: |
           set -euo pipefail
 
-          # ACR admin credentials so ACA can pull the image
           az acr update -n "$ACR_NAME" --admin-enabled true >/dev/null
           ACR_PW=$(az acr credential show -n "$ACR_NAME" --query 'passwords[0].value' -o tsv)
 
           IMAGE_REF="$ACR_NAME.azurecr.io/$IMAGE_NAME:${{ github.sha }}"
 
-          # Detect existing app to decide create vs update
           if az containerapp show -n "$APP_NAME" -g "$RESOURCE_GROUP" >/dev/null 2>&1; then
             echo "Updating existing containerapp..."
-            # Keep existing secrets/env-vars; just roll the image
             az containerapp update \
               -n "$APP_NAME" -g "$RESOURCE_GROUP" \
               --image "$IMAGE_REF"
           else
             echo "Creating new containerapp..."
-            # First-time create: plant all secrets + env vars.
-            # APP_URL is left to Container Apps FQDN; we patch it after we learn it.
             az containerapp create \
               -n "$APP_NAME" -g "$RESOURCE_GROUP" \
               --environment "$ACA_ENV" \
@@ -111,7 +115,6 @@ jobs:
                 "NODE_ENV=production"
           fi
 
-          # Resolve FQDN and set APP_URL = https://<fqdn>
           FQDN=$(az containerapp show -n "$APP_NAME" -g "$RESOURCE_GROUP" \
             --query 'properties.configuration.ingress.fqdn' -o tsv)
           APP_URL="https://$FQDN"
@@ -119,7 +122,6 @@ jobs:
           echo "APP_URL: $APP_URL"
           echo "app_url=$APP_URL" >> "$GITHUB_OUTPUT"
 
-          # Ensure APP_URL env var is set / up-to-date (idempotent)
           az containerapp update \
             -n "$APP_NAME" -g "$RESOURCE_GROUP" \
             --set-env-vars "APP_URL=$APP_URL" >/dev/null
@@ -127,8 +129,6 @@ jobs:
       - name: Output deployed URL
         run: |
           echo "::notice title=Deployed::${{ steps.deploy.outputs.app_url }}"
-          echo "### ✅ Deployed to: ${{ steps.deploy.outputs.app_url }}" >> $GITHUB_STEP_SUMMARY
+          echo "### Deployed to: ${{ steps.deploy.outputs.app_url }}" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "⚠️ 首次部署后,记得去 Casdoor 后台把以下 URL 加到 Application redirectUris:" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "\`${{ steps.deploy.outputs.app_url }}/api/auth/callback/casdoor\`" >> $GITHUB_STEP_SUMMARY
+          echo "Casdoor redirectUri to add: \`${{ steps.deploy.outputs.app_url }}/api/auth/callback/casdoor\`" >> $GITHUB_STEP_SUMMARY
