@@ -6,6 +6,7 @@ import {
   BusinessDesktopRoutesWithMainLayout,
   BusinessDesktopRoutesWithoutMainLayout,
 } from '@/business/client/BusinessDesktopRoutes';
+import EnterpriseAdmin from '@/features/EnterpriseAdmin';
 import DesktopOnboarding from '@/routes/(desktop)/desktop-onboarding';
 // Layouts — sync import (Electron local, no network overhead)
 import DesktopMainLayout from '@/routes/(main)/_layout';
@@ -289,6 +290,20 @@ export const desktopRoutes: RouteObject[] = [
             ],
             element: <ProviderLayout />,
             path: 'provider',
+          },
+          // [enterprise-fork] Enterprise Admin console —— 管理员专属
+          {
+            children: [
+              {
+                element: redirectElement('/settings/enterprise-admin/dashboard'),
+                index: true,
+              },
+              {
+                element: <EnterpriseAdmin />,
+                path: ':page',
+              },
+            ],
+            path: 'enterprise-admin',
           },
           // Other settings tabs
           {

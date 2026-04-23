@@ -18,6 +18,7 @@ import {
   KeyRound,
   Map,
   PaletteIcon,
+  ShieldCheck,
   Sparkles,
   TerminalSquare,
 } from 'lucide-react';
@@ -39,6 +40,8 @@ import { userGeneralSettingsSelectors } from '@/store/user/slices/settings/selec
 
 export enum SettingsGroupKey {
   Agent = 'agent',
+  /** [enterprise-fork] 企业管理分组:仅管理员可见 */
+  Enterprise = 'enterprise',
   General = 'general',
   Subscription = 'subscription',
   System = 'system',
@@ -186,6 +189,22 @@ export const useCategory = () => {
         items: agentItems,
         key: SettingsGroupKey.Agent,
         title: t('group.aiConfig'),
+      });
+    }
+
+    // [enterprise-fork] Enterprise group —— 管理员专属，打开后进入内嵌的
+    // 企业管理控制台（用户/角色/工具/权限/数据范围/身份映射/审计）。
+    if (isAdmin) {
+      groups.push({
+        items: [
+          {
+            icon: ShieldCheck,
+            key: SettingsTabs.EnterpriseAdmin,
+            label: t('tab.enterpriseAdmin', { defaultValue: '企业管理' }),
+          },
+        ],
+        key: SettingsGroupKey.Enterprise,
+        title: t('group.enterprise', { defaultValue: '企业' }),
       });
     }
 

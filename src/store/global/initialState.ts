@@ -51,6 +51,8 @@ export enum SettingsTabs {
   Common = 'common',
   Credits = 'credits',
   Creds = 'creds',
+  /** [enterprise-fork] 企业管理:Users / Roles / Tools / Permissions / Scopes / IdentityMap / Audit */
+  EnterpriseAdmin = 'enterprise-admin',
   Hotkey = 'hotkey',
   /** @deprecated Use ServiceModel instead */
   Image = 'image',

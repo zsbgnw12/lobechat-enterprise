@@ -3,7 +3,6 @@ import { type ChatToolPayload } from '@lobechat/types';
 import { detectTruncatedJSON, safeParseJSON } from '@lobechat/utils';
 import debug from 'debug';
 
-import { executeEnterpriseTool, isEnterpriseIdentifier } from '@/server/services/enterpriseGateway';
 import { KlavisService } from '@/server/services/klavis';
 import { MarketService } from '@/server/services/market';
 
@@ -67,25 +66,19 @@ export class BuiltinToolsExecutor implements IToolExecutor {
       args,
     );
 
-    // [enterprise-fork] Route enterprise.* tools to Enterprise Gateway
-    //
-    // 前端注入的 17 个企业工具 identifier 都以 "enterprise." 开头
-    // （见 src/const/enterpriseTools.ts）。这里拦下来转发到 Gateway。
-    //
-    // 依赖：
-    //   - context.userId 必须存在（authedProcedure 保证）
-    //   - context.serverDB 必须存在（serverDatabase middleware 保证）
-    //
-    // 如果任何一个缺失，退回到 "Builtin tool is not implemented" 的默认错误路径。
-    if (isEnterpriseIdentifier(identifier)) {
+    // [enterprise-fork] Route chat-gw tools (identifier prefix `chatgw-`) to
+    // the chat-gw MCP proxy. chat-gw 用 Casdoor JWT passthrough 做授权,
+    // token 从 Better Auth accounts 表取。详见 src/server/services/chatGateway/*。
+    if (identifier.startsWith('chatgw-')) {
       if (!context.userId || !context.serverDB) {
         return {
-          content: '企业工具调用缺少会话上下文（userId 或 serverDB）。',
+          content: 'chat-gw 工具调用缺少会话上下文(userId 或 serverDB)。',
           error: { code: 'MISSING_CONTEXT', message: 'userId or serverDB missing' },
           success: false,
         };
       }
-      return executeEnterpriseTool({
+      const { executeChatGwTool } = await import('@/server/services/chatGateway/invokeTool');
+      return executeChatGwTool({
         args,
         identifier,
         serverDB: context.serverDB,

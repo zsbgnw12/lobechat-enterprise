@@ -35,7 +35,6 @@ import { ThreadStatus, ThreadType } from '@lobechat/types';
 import { nanoid } from '@lobechat/utils';
 import debug from 'debug';
 
-import { ENTERPRISE_TOOL_MANIFESTS, toolKeyToIdentifier } from '@/const/enterpriseTools';
 import { AgentModel } from '@/database/models/agent';
 import { AgentSkillModel } from '@/database/models/agentSkill';
 import { AiModelModel } from '@/database/models/aiModel';
@@ -62,7 +61,6 @@ import { getAbortError, isAbortError, throwIfAborted } from '@/server/services/a
 import { type AgentHook } from '@/server/services/agentRuntime/hooks/types';
 import { type StepLifecycleCallbacks } from '@/server/services/agentRuntime/types';
 import { DocumentService } from '@/server/services/document';
-import { getEnterpriseVisibleToolKeys } from '@/server/services/enterpriseRole';
 import { FileService } from '@/server/services/file';
 import { KlavisService } from '@/server/services/klavis';
 import { MarketService } from '@/server/services/market';
@@ -597,35 +595,13 @@ export class AiAgentService {
       }
       log('execAgent: got %d klavis manifests', klavisManifests.length);
 
-      // [enterprise-fork] 5d.1 按 Gateway 授权过滤 17 件套 —— 只给本人有权的
-      // 那些工具生成 function schema，防止模型调到 403 被拒的工具。
-      // 未识别身份或 Gateway 不通 → 空数组 → 企业工具全屏蔽。
-      const enterpriseVisibleToolKeys = await getEnterpriseVisibleToolKeys(
-        this.serverDB,
-        this.userId,
-      );
-      const enterpriseVisibleIdentifiers = new Set(
-        enterpriseVisibleToolKeys.map((k) => toolKeyToIdentifier(k)),
-      );
-      const filteredEnterpriseManifests = ENTERPRISE_TOOL_MANIFESTS.filter((m) =>
-        enterpriseVisibleIdentifiers.has(m.identifier),
-      );
-      const filteredEnterpriseIdentifiers = ENTERPRISE_TOOL_IDENTIFIERS.filter((id) =>
-        enterpriseVisibleIdentifiers.has(id),
-      );
-      log(
-        'execAgent: enterprise tools filtered by role: %d/%d visible',
-        filteredEnterpriseManifests.length,
-        ENTERPRISE_TOOL_MANIFESTS.length,
-      );
-      // eslint-disable-next-line no-console
-      console.log(
-        '[enterprise-aiAgent] visibleKeys=%d filteredManifests=%d filteredIdentifiers=%d sample=%o',
-        enterpriseVisibleToolKeys.length,
-        filteredEnterpriseManifests.length,
-        filteredEnterpriseIdentifiers.length,
-        filteredEnterpriseIdentifiers.slice(0, 3),
-      );
+      // [enterprise-fork] 老 gateway 17 工具 + per-role 过滤已删除。chat-gw 69 工具
+      // 通过 BuiltinToolsExecutor 的 `chatgw-*` 前缀路由在运行时拿 Casdoor 角色
+      // 过滤(chat-gw tools/list 返回已按角色过滤)。server-side aiAgent.execAgent
+      // 这条路径目前暂不主动注入 chat-gw manifest —— 聊天走 client AgentRuntime
+      // 时通过 useChatGwTools + ToolsEngine 取到;server path 后续补。
+      const filteredEnterpriseManifests: typeof builtinManifests = [];
+      const filteredEnterpriseIdentifiers: string[] = [];
 
       await throwIfExecutionAborted('tool discovery');
 

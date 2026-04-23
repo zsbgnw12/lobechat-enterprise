@@ -24,11 +24,13 @@ import { aiProviderRouter } from './aiProvider';
 import { apiKeyRouter } from './apiKey';
 import { botMessageRouter } from './botMessage';
 import { briefRouter } from './brief';
+import { chatGatewayRouter } from './chatGateway';
 import { chunkRouter } from './chunk';
 import { comfyuiRouter } from './comfyui';
 import { configRouter } from './config';
 import { deviceRouter } from './device';
 import { documentRouter } from './document';
+import { enterpriseAdminRouter } from './enterpriseAdmin';
 import { enterpriseRoleRouter } from './enterpriseRole';
 import { exporterRouter } from './exporter';
 import { fileRouter } from './file';
@@ -85,6 +87,8 @@ export const lambdaRouter = router({
   config: configRouter,
   device: deviceRouter,
   document: documentRouter,
+  chatGateway: chatGatewayRouter,
+  enterpriseAdmin: enterpriseAdminRouter,
   enterpriseRole: enterpriseRoleRouter,
   exporter: exporterRouter,
   file: fileRouter,

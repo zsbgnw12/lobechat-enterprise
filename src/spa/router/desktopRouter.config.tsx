@@ -331,6 +331,23 @@ export const desktopRoutes: RouteObject[] = [
             ),
             path: 'provider',
           },
+          // [enterprise-fork] Enterprise Admin console —— 管理员专属,子路由
+          {
+            children: [
+              {
+                element: redirectElement('/settings/enterprise-admin/dashboard'),
+                index: true,
+              },
+              {
+                element: dynamicElement(
+                  () => import('@/features/EnterpriseAdmin'),
+                  'Desktop > Settings > Enterprise Admin',
+                ),
+                path: ':page',
+              },
+            ],
+            path: 'enterprise-admin',
+          },
           // Other settings tabs
           {
             element: dynamicElement(

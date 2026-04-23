@@ -11,9 +11,8 @@ import isEqual from 'fast-deep-equal';
 import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { ENTERPRISE_TOOL_PREFIX, toolKeyToIdentifier } from '@/const/enterpriseTools';
+import { useChatGwTools } from '@/features/EnterpriseAdmin/hooks/useChatGwTools';
 import { useCheckPluginsIsInstalled } from '@/hooks/useCheckPluginsIsInstalled';
-import { useEnterpriseVisibleTools } from '@/hooks/useEnterpriseRole';
 import { useFetchInstalledPlugins } from '@/hooks/useFetchInstalledPlugins';
 import { useAgentStore } from '@/store/agent';
 import { agentByIdSelectors, chatConfigByIdSelectors } from '@/store/agent/selectors';
@@ -55,22 +54,12 @@ export const useControls = ({ setUpdating }: { setUpdating: (updating: boolean) 
   const isManualSkillMode = useAgentStore(
     (s) => chatConfigByIdSelectors.getSkillActivateModeById(agentId)(s) === 'manual',
   );
-  const rawBuiltinList = useToolStore(
+  const builtinList = useToolStore(
     isManualSkillMode
       ? builtinToolSelectors.metaListIncludingHidden
       : builtinToolSelectors.metaList,
     isEqual,
   );
-  // [enterprise-fork] 按当前用户在 Gateway 里的授权过滤企业工具 —— selectors
-  // 把 17 个 meta 全塞进来，这里再根据 visibleKeys 收窄。非企业工具不受影响。
-  const visibleToolKeys = useEnterpriseVisibleTools();
-  const builtinList = useMemo(() => {
-    const allowed = new Set(visibleToolKeys.map((k) => toolKeyToIdentifier(k)));
-    return rawBuiltinList.filter((item) => {
-      if (!item.identifier.startsWith(ENTERPRISE_TOOL_PREFIX)) return true;
-      return allowed.has(item.identifier);
-    });
-  }, [rawBuiltinList, visibleToolKeys]);
   const plugins = useAgentStore((s) => agentByIdSelectors.getAgentPluginsById(agentId)(s));
 
   // Klavis-related state
@@ -101,6 +90,9 @@ export const useControls = ({ setUpdating }: { setUpdating: (updating: boolean) 
   useFetchInstalledPlugins();
   useFetchUninstalledBuiltinTools(true);
   useFetchAgentSkills(true);
+
+  // [enterprise-fork] chat-gw 工具清单(当前 Casdoor 用户视角,按角色已过滤)
+  const { data: chatGwTools } = useChatGwTools();
   useCheckPluginsIsInstalled(plugins);
 
   // Load user's Klavis integrations via SWR (from database)
@@ -506,6 +498,37 @@ export const useControls = ({ setUpdating }: { setUpdating: (updating: boolean) 
     ...skillItems,
   ];
 
+  // [enterprise-fork] AI 网关(chat-gw)工具组 —— 按 category 排,每条一个 checkbox
+  // 项。勾选进 agent 的 plugin 白名单,下次发消息模型就能看到这个工具的 schema。
+  const chatGwGroupChildren: ItemType[] = useMemo(() => {
+    if (!chatGwTools || chatGwTools.length === 0) return [];
+    return chatGwTools.map((tool) => ({
+      icon: <Icon icon={McpIcon} size={SKILL_ICON_SIZE} />,
+      key: tool.identifier,
+      label: (
+        <ToolItem
+          checked={checked.includes(tool.identifier)}
+          id={tool.identifier}
+          label={tool.name}
+          onUpdate={async () => {
+            setUpdating(true);
+            await togglePlugin(tool.identifier);
+            setUpdating(false);
+          }}
+        />
+      ),
+      popoverContent: (
+        <ToolItemDetailPopover
+          description={tool.description ?? ''}
+          icon={<Icon icon={McpIcon} size={36} />}
+          identifier={tool.identifier}
+          sourceLabel="AI 网关"
+          title={tool.name}
+        />
+      ),
+    }));
+  }, [chatGwTools, checked, togglePlugin, setUpdating]);
+
   // Build Community group children (Market Agent Skills + community plugins)
   const communityGroupChildren: ItemType[] = [
     ...marketAgentSkillItems,
@@ -527,6 +550,17 @@ export const useControls = ({ setUpdating }: { setUpdating: (updating: boolean) 
             children: lobehubGroupChildren,
             key: 'lobehub',
             label: t('skillStore.tabs.lobehub'),
+            type: 'group' as const,
+          },
+        ]
+      : []),
+    // [enterprise-fork] AI 网关分组 —— 当前账号按 Casdoor 角色可见的工具
+    ...(chatGwGroupChildren.length > 0
+      ? [
+          {
+            children: chatGwGroupChildren,
+            key: 'chat-gw',
+            label: 'AI 网关',
             type: 'group' as const,
           },
         ]
@@ -686,6 +720,43 @@ export const useControls = ({ setUpdating }: { setUpdating: (updating: boolean) 
         children: allBuiltinItems,
         key: 'installed-lobehub',
         label: t('skillStore.tabs.lobehub'),
+        type: 'group',
+      });
+    }
+
+    // [enterprise-fork] Enabled chat-gw tools in installed tab
+    const enabledChatGwItems = (chatGwTools ?? [])
+      .filter((tool) => checked.includes(tool.identifier))
+      .map((tool) => ({
+        icon: <Icon icon={McpIcon} size={SKILL_ICON_SIZE} />,
+        key: tool.identifier,
+        label: (
+          <ToolItem
+            checked={true}
+            id={tool.identifier}
+            label={tool.name}
+            onUpdate={async () => {
+              setUpdating(true);
+              await togglePlugin(tool.identifier);
+              setUpdating(false);
+            }}
+          />
+        ),
+        popoverContent: (
+          <ToolItemDetailPopover
+            description={tool.description ?? ''}
+            icon={<Icon icon={McpIcon} size={36} />}
+            identifier={tool.identifier}
+            sourceLabel="AI 网关"
+            title={tool.name}
+          />
+        ),
+      }));
+    if (enabledChatGwItems.length > 0) {
+      installedItems.push({
+        children: enabledChatGwItems,
+        key: 'installed-chat-gw',
+        label: 'AI 网关',
         type: 'group',
       });
     }

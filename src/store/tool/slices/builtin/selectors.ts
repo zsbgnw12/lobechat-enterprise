@@ -1,7 +1,6 @@
 import { runtimeManagedToolIds } from '@lobechat/builtin-tools';
 import { type BuiltinSkill, type LobeToolMeta } from '@lobechat/types';
 
-import { ENTERPRISE_TOOLS } from '@/const/enterpriseTools';
 import {
   isBuiltinSkillAvailableInCurrentEnv,
   isBuiltinToolAvailableInCurrentEnv,
@@ -126,16 +125,10 @@ const buildVisibleMetaList = (
     .map(toSkillMeta);
   const agentSkillMetas = agentSkillsSelectors.agentSkillMetaList(s);
 
-  // [enterprise-fork] 注入 17 个企业 Gateway 工具到工具面板——前端先有 UI，
-  // 后端的真实分发（gongdan/xiaoshou/cloudcost/...）由另一位同事负责接入。
-  // 详见 src/const/enterpriseTools.ts。
-  return [
-    ...ENTERPRISE_TOOLS,
-    ...skillMetas,
-    ...agentSkillMetas,
-    ...builtinMetas,
-    ...getKlavisMetas(s),
-  ];
+  // [enterprise-fork] chat-gw 工具通过 useInstalledSkillsAndTools hook 注入到
+  // ChatInput 的 @ 菜单(src/features/ChatInput/InputEditor/ActionTag/...)。
+  // 此 selector 只负责 LobeChat 原生工具(builtin + Klavis)。
+  return [...skillMetas, ...agentSkillMetas, ...builtinMetas, ...getKlavisMetas(s)];
 };
 
 /**
@@ -186,20 +179,7 @@ const allMetaList = (s: ToolStoreState): LobeToolMetaWithAvailability[] => {
     .agentSkillMetaList(s)
     .map((meta) => ({ ...meta, availableInWeb: true }));
 
-  // [enterprise-fork] 同样在 agent profile 里露出企业工具，让管理员能勾选哪些
-  // agent 可以调用哪些企业工具。availableInWeb:true（Web/桌面都可用）。
-  const enterpriseMetas: LobeToolMetaWithAvailability[] = ENTERPRISE_TOOLS.map((t) => ({
-    ...t,
-    availableInWeb: true,
-  }));
-
-  return [
-    ...enterpriseMetas,
-    ...skillMetas,
-    ...agentSkillMetas,
-    ...builtinMetas,
-    ...getKlavisMetasWithAvailability(s),
-  ];
+  return [...skillMetas, ...agentSkillMetas, ...builtinMetas, ...getKlavisMetasWithAvailability(s)];
 };
 
 /**

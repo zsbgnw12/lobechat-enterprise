@@ -25,48 +25,79 @@
  * 后可调用 `invalidateEnterpriseRoleCache(userId)` 定点失效。
  */
 import debug from 'debug';
+import { and, eq } from 'drizzle-orm';
 
 import { UserModel } from '@/database/models/user';
+import { account as accountsTable } from '@/database/schemas/betterAuth';
 import type { LobeChatDatabase } from '@/database/type';
 
 const log = debug('lobe-enterprise:role');
 
 export interface EnterpriseRoleInfo {
-  /** super_admin 或 permission_admin 视为管理员 */
+  /** 是否视为 LobeChat 管理员(super_admin 等价) */
   isAdmin: boolean;
-  /** Gateway 返回的 roleKeys，未命中时为空数组 */
+  /** 角色 key 数组。方案 X 下,直接来自 Casdoor JWT 的 `roles` claim
+   *  (如 cloud_admin / cloud_ops / engineer-l3 等),不再由我们 gateway 维护。*/
   roles: string[];
-  /** 该用户在 Gateway 里的 username（邮箱 local-part），或 null 表示无法解析 */
+  /** 用户名:Casdoor SSO 用户 → JWT `name` claim;邮箱登录用户 → 邮箱 local-part */
   username: string | null;
 }
 
 const CACHE_TTL_MS = 5 * 60 * 1000;
 const cache = new Map<string, { info: EnterpriseRoleInfo; at: number }>();
 
-const ADMIN_ROLES = new Set(['super_admin', 'permission_admin']);
+/**
+ * [方案 X] Casdoor 角色 → LobeChat "管理员" 判定。
+ * `cloud_admin` 视为 LobeChat super_admin 等价体(能 CRUD provider/model、
+ * 进企业管理页)。其他 Casdoor 角色(engineer-l3 等) / 非 Casdoor 用户都
+ * 不是 admin。legacy `super_admin` / `permission_admin`(gateway `enterprise_roles`
+ * 里的)也兼容保留,给老 sa 邮箱登录的场景。
+ */
+const ADMIN_ROLES = new Set(['cloud_admin', 'super_admin', 'permission_admin']);
 
 function computeIsAdmin(roles: string[]): boolean {
   return roles.some((r) => ADMIN_ROLES.has(r));
 }
 
 /**
- * 从邮箱地址推导 Gateway username。
- * 当前约定：local-part（`@` 前的部分），trim 后小写。
- * Returns null 如果邮箱为空或缺 local-part。
+ * 把 JWT 的 payload 段 base64url-decode 出来。不做签名校验 —— 这段
+ * JWT 是 Better Auth 在 OAuth 登录时验证过签名后写进 DB 的,我们只
+ * 相信 DB 里的就够了。过期也不 check,过期由 tokenStore 那边处理。
  */
-export function deriveEnterpriseUsername(email: string | null | undefined): string | null {
-  if (!email) return null;
-  const at = email.indexOf('@');
-  const local = (at === -1 ? email : email.slice(0, at)).trim().toLowerCase();
-  if (!local) return null;
-  return local;
+function decodeJwtPayload(token: string): Record<string, any> | null {
+  try {
+    const parts = token.split('.');
+    if (parts.length < 2) return null;
+    const padded = parts[1] + '='.repeat((4 - (parts[1].length % 4)) % 4);
+    const json = Buffer.from(padded.replaceAll('-', '+').replaceAll('_', '/'), 'base64').toString(
+      'utf8',
+    );
+    return JSON.parse(json) as Record<string, any>;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * 从 Casdoor JWT payload 里提取 roles。Casdoor 有两种输出:
+ *   - `roles: ["cloud_admin", ...]` (已展平)
+ *   - `roles: [{ name: "cloud_admin", ... }]` (对象数组,我们登录后实测是这种)
+ * 两种都兼容。
+ */
+function extractCasdoorRoles(payload: Record<string, any>): string[] {
+  const raw = payload?.roles;
+  if (!Array.isArray(raw)) return [];
+  return raw
+    .map((r) => (typeof r === 'string' ? r : r?.name))
+    .filter((s): s is string => typeof s === 'string' && s.length > 0);
 }
 
 /**
  * 读取某个 LobeChat 用户的企业角色。
- * - 首次调用：查 DB 拿 email → 推 username → 调 Gateway `/api/me` 拿 roles
- * - 二次调用：5 分钟内走缓存
- * - Gateway 不可达 / 返回 401 / 用户不在 Gateway 里：返回空 roles，isAdmin=false
+ *
+ * [方案 X] 角色从 Better Auth `accounts` 表里 Casdoor access_token 的 `roles`
+ * claim 解出。如果当前用户不是 Casdoor 登录(邮箱密码注册的测试账号),roles
+ * 空数组,isAdmin=false。老 Fastify gateway 回退路径已废弃。
  */
 export async function getEnterpriseRole(
   db: LobeChatDatabase,
@@ -76,134 +107,86 @@ export async function getEnterpriseRole(
     return { username: null, roles: [], isAdmin: false };
   }
 
-  // 1. cache hit
+  // 1. cache hit(5 分钟 TTL)
   const hit = cache.get(lobechatUserId);
   if (hit && Date.now() - hit.at < CACHE_TTL_MS) {
     log('cache hit for %s: roles=%o', lobechatUserId, hit.info.roles);
-    // eslint-disable-next-line no-console
-    console.log('[enterpriseRole] cache hit:', lobechatUserId, JSON.stringify(hit.info));
     return hit.info;
   }
 
-  // 2. 查 LobeChat user 拿 email
-  let email: string | null = null;
+  // 2. 从 Better Auth accounts 表读 Casdoor JWT,解 roles claim
+  const casdoorInfo = await resolveRoleFromCasdoor(db, lobechatUserId);
+  if (casdoorInfo) {
+    log('casdoor resolved %s → roles=%o', lobechatUserId, casdoorInfo.roles);
+    cache.set(lobechatUserId, { info: casdoorInfo, at: Date.now() });
+    return casdoorInfo;
+  }
+
+  // 3. 非 Casdoor 登录(邮箱密码注册)→ 拿 email 做展示用 username,roles 空
+  let username: string | null = null;
   try {
     const user = await UserModel.findById(db, lobechatUserId);
-    email = user?.email ?? null;
+    const email = user?.email ?? null;
+    if (email) {
+      const at = email.indexOf('@');
+      username = (at === -1 ? email : email.slice(0, at)).trim().toLowerCase() || null;
+    }
   } catch (err) {
     log('findById failed for %s: %O', lobechatUserId, err);
   }
-
-  const username = deriveEnterpriseUsername(email);
-  // eslint-disable-next-line no-console
-  console.log('[enterpriseRole] resolved email → username:', email, '→', username);
-  if (!username) {
-    const info: EnterpriseRoleInfo = { username: null, roles: [], isAdmin: false };
-    cache.set(lobechatUserId, { info, at: Date.now() });
-    return info;
-  }
-
-  // 3. 调 Gateway /api/me
-  const gatewayUrl = process.env.GATEWAY_INTERNAL_URL || 'http://localhost:3001';
-  // eslint-disable-next-line no-console
-  console.log('[enterpriseRole] calling gateway:', gatewayUrl, 'X-Dev-User:', username);
-  const info = await fetchGatewayRole(gatewayUrl, username);
-  // eslint-disable-next-line no-console
-  console.log('[enterpriseRole] gateway returned:', JSON.stringify(info));
+  const info: EnterpriseRoleInfo = { username, roles: [], isAdmin: false };
   cache.set(lobechatUserId, { info, at: Date.now() });
   return info;
 }
 
-async function fetchGatewayRole(gatewayUrl: string, username: string): Promise<EnterpriseRoleInfo> {
-  try {
-    // AbortController + 2s timeout —— 不要因为 Gateway 短暂不可达阻塞前端渲染
-    const ctrl = new AbortController();
-    const timer = setTimeout(() => ctrl.abort(), 2000);
-    const resp = await fetch(`${gatewayUrl}/api/me`, {
-      headers: { 'X-Dev-User': username },
-      signal: ctrl.signal,
-    });
-    clearTimeout(timer);
-
-    if (resp.status === 401 || resp.status === 403) {
-      log('gateway says user %s is unauthenticated (status %d)', username, resp.status);
-      return { username, roles: [], isAdmin: false };
-    }
-    if (!resp.ok) {
-      log('gateway /api/me returned %d for %s, treating as guest', resp.status, username);
-      return { username, roles: [], isAdmin: false };
-    }
-    const body = (await resp.json()) as { roles?: string[] };
-    const roles = Array.isArray(body.roles) ? body.roles : [];
-    log('gateway resolved %s → roles=%o', username, roles);
-    return { username, roles, isAdmin: computeIsAdmin(roles) };
-  } catch (err) {
-    // 网络失败 / 超时 / JSON 解析失败一律 fail-closed（不给管理员权限）
-    log('gateway call failed for %s: %O', username, err);
-    return { username, roles: [], isAdmin: false };
-  }
-}
-
-// ─── 可见工具列表缓存 ───────────────────────────────────────────────────
-// Gateway `/api/lobechat/manifest` 已经按身份返回 user 能用的工具子集。
-// 我们在此层 5min 缓存，避免前端每次 poll 都打 Gateway。
-
-const toolsCache = new Map<string, { at: number; keys: string[] }>();
-
-const normalizeToolName = (name: string): string => name.replaceAll('__', '.');
-
 /**
- * 返回指定 LobeChat user 当前能用的 Gateway 工具 keys（如 ["kb.search",
- * "gongdan.search_tickets", ...]）。
- * 永不抛异常——Gateway 不通 / 身份未识别 → 空数组。
+ * 从 Better Auth `accounts` 表读 Casdoor access_token,解出 roles claim。
+ * 没有 Casdoor 绑定返回 null(让上层走 gateway 回退)。
  */
-export async function getEnterpriseVisibleToolKeys(
+async function resolveRoleFromCasdoor(
   db: LobeChatDatabase,
-  lobechatUserId: string,
-): Promise<string[]> {
-  if (!lobechatUserId) return [];
-
-  const hit = toolsCache.get(lobechatUserId);
-  if (hit && Date.now() - hit.at < CACHE_TTL_MS) return hit.keys;
-
-  // 先通过 role 解析拿 username（也会触发 role 缓存写入）
-  const role = await getEnterpriseRole(db, lobechatUserId);
-  if (!role.username) {
-    toolsCache.set(lobechatUserId, { at: Date.now(), keys: [] });
-    return [];
-  }
-
-  const gatewayUrl = process.env.GATEWAY_INTERNAL_URL || 'http://localhost:3001';
+  userId: string,
+): Promise<EnterpriseRoleInfo | null> {
   try {
-    const ctrl = new AbortController();
-    const timer = setTimeout(() => ctrl.abort(), 2000);
-    const resp = await fetch(`${gatewayUrl}/api/lobechat/manifest`, {
-      headers: { 'X-Dev-User': role.username },
-      signal: ctrl.signal,
-    });
-    clearTimeout(timer);
-    if (!resp.ok) {
-      toolsCache.set(lobechatUserId, { at: Date.now(), keys: [] });
-      return [];
-    }
-    const body = (await resp.json()) as { api?: Array<{ name: string }> };
-    const keys = (body.api ?? []).map((a) => normalizeToolName(a.name));
-    log('gateway visible tools for %s: %o', role.username, keys);
-    toolsCache.set(lobechatUserId, { at: Date.now(), keys });
-    return keys;
+    const rows = await db
+      .select({
+        accessToken: accountsTable.accessToken,
+        idToken: accountsTable.idToken,
+      })
+      .from(accountsTable)
+      .where(and(eq(accountsTable.userId, userId), eq(accountsTable.providerId, 'casdoor')))
+      .limit(1);
+    const row = rows[0];
+    if (!row) return null;
+
+    // 优先 access_token,不行用 id_token
+    const token = row.accessToken ?? row.idToken;
+    if (!token) return null;
+
+    const payload = decodeJwtPayload(token);
+    if (!payload) return null;
+
+    const roles = extractCasdoorRoles(payload);
+    const username =
+      (typeof payload.name === 'string' && payload.name) ||
+      (typeof payload.preferred_username === 'string' && payload.preferred_username) ||
+      null;
+    return {
+      isAdmin: computeIsAdmin(roles),
+      roles,
+      username,
+    };
   } catch (err) {
-    log('visible tools fetch failed for %s: %O', role.username, err);
-    toolsCache.set(lobechatUserId, { at: Date.now(), keys: [] });
-    return [];
+    log('resolveRoleFromCasdoor failed for %s: %O', userId, err);
+    return null;
   }
 }
 
 /**
- * 强制让指定 user 的缓存失效（例如 admin 在 Gateway 侧改了某人的角色）。
+ * 强制让指定 user 的缓存失效(例如管理员外部变更该用户在 Casdoor 里的角色)。
  */
 export function invalidateEnterpriseRoleCache(lobechatUserId: string): void {
   cache.delete(lobechatUserId);
-  toolsCache.delete(lobechatUserId);
 }
 
 // ─── Enterprise provider owner (管理员 userId) ─────────────────────────

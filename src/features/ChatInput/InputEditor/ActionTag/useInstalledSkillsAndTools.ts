@@ -1,6 +1,7 @@
 import isEqual from 'fast-deep-equal';
 import { useMemo } from 'react';
 
+import { useChatGwTools } from '@/features/EnterpriseAdmin/hooks/useChatGwTools';
 import { useToolStore } from '@/store/tool';
 import {
   agentSkillsSelectors,
@@ -24,6 +25,8 @@ export const useInstalledSkillsAndTools = (): ActionTagData[] => {
   const lobehubSkillServers = useToolStore(lobehubSkillStoreSelectors.getServers, isEqual);
   const marketAgentSkills = useToolStore(agentSkillsSelectors.getMarketAgentSkills, isEqual);
   const userAgentSkills = useToolStore(agentSkillsSelectors.getUserAgentSkills, isEqual);
+  // [enterprise-fork] 注入 chat-gw 工具(当前 Casdoor 用户可见的那些)
+  const { data: chatGwTools } = useChatGwTools();
 
   return useMemo(() => {
     const items: ActionTagData[] = [];
@@ -69,6 +72,13 @@ export const useInstalledSkillsAndTools = (): ActionTagData[] => {
         });
       }
     }
+    // [enterprise-fork] chat-gw 工具(当前 Casdoor 用户角色能看到的 69 子集)
+    for (const item of chatGwTools ?? []) {
+      if (skillMap.has(item.identifier)) continue;
+      if (!toolMap.has(item.identifier)) {
+        toolMap.set(item.identifier, { label: item.name });
+      }
+    }
 
     // --- Merge into output ---
     for (const [id, { icon, label }] of skillMap) {
@@ -86,5 +96,6 @@ export const useInstalledSkillsAndTools = (): ActionTagData[] => {
     lobehubSkillServers,
     marketAgentSkills,
     userAgentSkills,
+    chatGwTools,
   ]);
 };

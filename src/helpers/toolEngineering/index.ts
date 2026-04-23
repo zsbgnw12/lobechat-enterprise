@@ -11,7 +11,10 @@ import { createEnableChecker, type PluginEnableChecker } from '@lobechat/context
 import { ToolsEngine } from '@lobechat/context-engine';
 import { type ChatCompletionTool, type ToolManifest, type WorkingModel } from '@lobechat/types';
 
-import { ENTERPRISE_TOOL_IDENTIFIERS, ENTERPRISE_TOOL_MANIFESTS } from '@/const/enterpriseTools';
+import {
+  chatGwToolsToManifests,
+  getCachedChatGwTools,
+} from '@/features/EnterpriseAdmin/hooks/useChatGwTools';
 import { isToolAvailableInCurrentEnv } from '@/helpers/toolAvailability';
 import { getAgentStoreState } from '@/store/agent';
 import { agentChatConfigSelectors, agentSelectors } from '@/store/agent/selectors';
@@ -100,10 +103,12 @@ export const createToolsEngine = (config: ToolsEngineConfig = {}): ToolsEngine =
     .map((tool) => tool.manifest as ToolManifest)
     .filter(Boolean);
 
-  // [enterprise-fork] 注入 18 个企业 Gateway 工具 manifest 到 client-side
-  // ToolsEngine。这是模型实际看到的 function schema 来源——LobeChat 这版
-  // chat 走 client AgentRuntime，server 侧 aiAgent.execAgent 不在路径上。
-  // 用户身份过滤由 enableChecker rules 在 createAgentToolsEngine 里做。
+  // [enterprise-fork] chat-gw 动态工具 manifest:从 useChatGwTools 的模块快照
+  // 同步读,每个工具一个 api:"execute" op,parameters = inputSchema。
+  // 快照由 `useChatGwTools` SWR 触发首次拉取后写入;若用户还没登录/Casdoor 未连通,
+  // 快照为空,这里也就不注入任何 manifest,不影响原生工具。
+  const chatGwManifests = chatGwToolsToManifests(getCachedChatGwTools());
+
   // Combine all manifests, dropping entries that would crash ToolsEngine.
   // Each source is filtered separately so the warning pinpoints the origin.
   const allManifests = [
@@ -111,7 +116,7 @@ export const createToolsEngine = (config: ToolsEngineConfig = {}): ToolsEngine =
     ...dropInvalidManifests(builtinManifests, 'builtinTools'),
     ...dropInvalidManifests(klavisManifests, 'klavis'),
     ...dropInvalidManifests(lobehubSkillManifests, 'lobehubSkills'),
-    ...dropInvalidManifests(ENTERPRISE_TOOL_MANIFESTS, 'enterpriseTools'),
+    ...dropInvalidManifests(chatGwManifests, 'chatGw'),
     ...dropInvalidManifests(additionalManifests, 'additionalManifests'),
   ];
 
@@ -158,11 +163,10 @@ export const createAgentToolsEngine = (
         ...Object.fromEntries(userPlugins.map((id) => [id, true])),
         // Always-on builtin tools
         ...Object.fromEntries(alwaysOnToolIds.map((id) => [id, true])),
-        // [enterprise-fork] 18 个企业 Gateway 工具 always-on（前端先全开放，
-        // 后端 Gateway 调用时按角色 403 拦截）。如需精细前端过滤，未来通过
-        // 一个 store slice 缓存 useEnterpriseVisibleTools 返回值，再这里
-        // 取交集即可。
-        ...Object.fromEntries(ENTERPRISE_TOOL_IDENTIFIERS.map((id) => [id, true])),
+        // [enterprise-fork] chat-gw 工具**不**默认 always-on,由 agent.plugins
+        // 白名单决定(用户在 ChatInput Tools popover 的"AI 网关"组里勾选)。
+        // 这样每个 agent 能精细控制哪些 chat-gw 工具参与其本次对话。chat-gw
+        // 侧还会按 Casdoor 角色二次兜底(-32001 no_role)。
         // System-level rules (may override user selection for specific tools)
         [CloudSandboxManifest.identifier]:
           agentChatConfigSelectors.isCloudSandboxEnabled(agentState),
