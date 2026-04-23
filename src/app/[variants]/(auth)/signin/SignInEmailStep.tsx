@@ -4,6 +4,7 @@ import { type FormInstance, type InputRef } from 'antd';
 import { Badge, Divider, Form } from 'antd';
 import { createStaticStyles } from 'antd-style';
 import { ChevronRight, Mail } from 'lucide-react';
+import Link from 'next/link';
 import { useEffect, useRef } from 'react';
 import { Trans, useTranslation } from 'react-i18next';
 
@@ -230,6 +231,18 @@ export const SignInEmailStep = ({
           }
         />
       )}
+      {/* [enterprise-fork] 客户编号登录入口(走 gongdan /api/auth/customer-login) */}
+      <Divider style={{ marginBlock: 4 }}>
+        <Text fontSize={11} type={'secondary'}>
+          或
+        </Text>
+      </Divider>
+      <Link
+        href="/signin/customer"
+        style={{ color: 'inherit', display: 'block', fontSize: 13, textAlign: 'center' }}
+      >
+        客户凭编号登录 →
+      </Link>
     </AuthCard>
   );
 };
