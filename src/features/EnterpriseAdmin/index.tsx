@@ -11,6 +11,7 @@ import { useEnterpriseRole } from '@/hooks/useEnterpriseRole';
 
 import Sidebar from './_layout/Sidebar';
 import AuditPage from './pages/Audit';
+import CustomerGrantsPage from './pages/CustomerGrants';
 import DashboardPage from './pages/Dashboard';
 import GrantsPage from './pages/Grants';
 import GwCatalogPage from './pages/GwCatalog';
@@ -37,6 +38,7 @@ const styles = createStaticStyles(({ css, cssVar }) => ({
 
 const PAGE_MAP: Record<AdminPageKey, React.ComponentType> = {
   'audit': AuditPage,
+  'customer-grants': CustomerGrantsPage,
   'dashboard': DashboardPage,
   'grants': GrantsPage,
   'gw-catalog': GwCatalogPage,

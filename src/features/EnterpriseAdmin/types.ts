@@ -16,6 +16,7 @@ export type AdminPageKey =
   | 'dashboard'
   | 'tools'
   | 'grants'
+  | 'customer-grants'
   | 'audit'
   | 'gw-health'
   | 'gw-catalog'

@@ -9,6 +9,7 @@ import { lambdaClient } from '@/libs/trpc/client/lambda';
 
 export const SWR_KEYS = {
   audit: 'enterpriseAdmin/audit',
+  customerGrants: 'enterpriseAdmin/customer-grants',
   dashboard: 'enterpriseAdmin/dashboard',
   grants: 'enterpriseAdmin/grants',
   tools: 'enterpriseAdmin/tools',
@@ -24,6 +25,9 @@ export const useAdminTools = (includeDisabled = true) =>
 
 export const useGrants = () =>
   useSWR(SWR_KEYS.grants, () => lambdaClient.enterpriseAdmin.listGrants.query());
+
+export const useCustomerGrants = () =>
+  useSWR(SWR_KEYS.customerGrants, () => lambdaClient.enterpriseAdmin.listCustomerGrants.query());
 
 /** Audit 有过滤参数,SWR key 根据参数派生 */
 export const useAudit = (input: {

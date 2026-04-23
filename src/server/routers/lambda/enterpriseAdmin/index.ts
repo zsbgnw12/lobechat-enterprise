@@ -21,9 +21,11 @@ import {
   AdminHttpError,
   deleteAdminTool,
   listAdminTools,
+  listCustomerGrants,
   listGrants,
   patchAdminTool,
   queryAudit,
+  setCustomerGrant,
   setGrant,
   upsertAdminTool,
 } from '@/server/services/chatGateway/adminClient';
@@ -166,6 +168,48 @@ export const enterpriseAdminRouter = router({
         return await setGrant(token, {
           granted: input.granted,
           role: input.role,
+          toolName: input.toolName,
+        });
+      } catch (e) {
+        wrapAdminError(e);
+      }
+    }),
+
+  // ─── Tool-customer grants (v0.2.0) ────────────────────────────
+  listCustomerGrants: adminProcedure
+    .input(
+      z.object({ customerCode: z.string().optional(), toolName: z.string().optional() }).optional(),
+    )
+    .query(async ({ ctx, input }) => {
+      try {
+        const token = await getCasdoorAccessToken(ctx.serverDB, ctx.userId);
+        return await listCustomerGrants(token, {
+          customerCode: input?.customerCode,
+          toolName: input?.toolName,
+        });
+      } catch (e) {
+        wrapAdminError(e);
+      }
+    }),
+
+  setCustomerGrant: adminProcedure
+    .input(
+      z.object({
+        customerCode: z
+          .string()
+          .min(1)
+          .max(32)
+          .regex(/^[\w-]+$/u, '只允许字母、数字、下划线、连字符'),
+        granted: z.boolean(),
+        toolName: z.string().min(1),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      try {
+        const token = await getCasdoorAccessToken(ctx.serverDB, ctx.userId);
+        return await setCustomerGrant(token, {
+          customerCode: input.customerCode,
+          granted: input.granted,
           toolName: input.toolName,
         });
       } catch (e) {

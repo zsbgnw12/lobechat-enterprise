@@ -217,6 +217,47 @@ export async function setGrant(
   return r;
 }
 
+// ─── Tool-customer grants (v0.2.0, LobeChat customer scenario) ─────
+
+export interface ToolCustomerGrant {
+  customer_code: string;
+  tool_name: string;
+}
+
+export async function listCustomerGrants(
+  token: string,
+  filter: { customerCode?: string; toolName?: string } = {},
+): Promise<ToolCustomerGrant[]> {
+  const r = await adminFetch<{ grants: ToolCustomerGrant[] }>(
+    token,
+    `/admin/tool-customer-grants${qs({
+      customer_code: filter.customerCode,
+      tool_name: filter.toolName,
+    })}`,
+  );
+  return r?.grants ?? [];
+}
+
+export async function setCustomerGrant(
+  token: string,
+  input: { customerCode: string; granted: boolean; toolName: string },
+): Promise<ToolCustomerGrant & { granted: boolean }> {
+  const r = await adminFetch<ToolCustomerGrant & { granted: boolean }>(
+    token,
+    '/admin/tool-customer-grants',
+    {
+      body: JSON.stringify({
+        customer_code: input.customerCode,
+        granted: input.granted,
+        tool_name: input.toolName,
+      }),
+      method: 'PUT',
+    },
+  );
+  if (!r) throw new AdminHttpError(500, 'empty response from PUT /admin/tool-customer-grants');
+  return r;
+}
+
 // ─── Audit ──────────────────────────────────────────────────────────
 
 export type AuditOutcome = 'ok' | 'allowed' | 'denied' | 'error';

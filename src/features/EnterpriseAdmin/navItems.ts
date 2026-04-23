@@ -1,6 +1,7 @@
 import {
   Activity,
   BookOpen,
+  Building2,
   HeartPulse,
   KeyRound,
   LayoutDashboard,
@@ -38,6 +39,12 @@ export const ADMIN_NAV_ITEMS: AdminNavItem[] = [
     icon: KeyRound,
     key: 'grants',
     label: '角色授权',
+  },
+  {
+    description: '客户(customer_code)× 工具 的授权矩阵,LobeChat 客户场景',
+    icon: Building2,
+    key: 'customer-grants',
+    label: '客户授权',
   },
   {
     description: '所有工具调用的不可变流水,keyset 分页',
