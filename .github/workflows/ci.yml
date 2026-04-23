@@ -29,8 +29,8 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: pnpm
-      - run: pnpm install --frozen-lockfile
+          # no pnpm-lock.yaml in repo (gitignored) — skipping cache
+      - run: pnpm install --no-frozen-lockfile
 
   lint-ts:
     name: ESLint
@@ -44,8 +44,8 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: pnpm
-      - run: pnpm install --frozen-lockfile
+          # no pnpm-lock.yaml in repo (gitignored) — skipping cache
+      - run: pnpm install --no-frozen-lockfile
       - run: pnpm run lint:ts
 
   lint-style:
@@ -60,8 +60,8 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: pnpm
-      - run: pnpm install --frozen-lockfile
+          # no pnpm-lock.yaml in repo (gitignored) — skipping cache
+      - run: pnpm install --no-frozen-lockfile
       # Root script uses --fix which mutates files; in CI we want check-only.
       - run: pnpm exec stylelint "{src,tests}/**/*.{js,jsx,ts,tsx}"
 
@@ -77,8 +77,8 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: pnpm
-      - run: pnpm install --frozen-lockfile
+          # no pnpm-lock.yaml in repo (gitignored) — skipping cache
+      - run: pnpm install --no-frozen-lockfile
       - run: pnpm run type-check
 
   # Note: a full `pnpm run test-app` (vitest across the whole workspace) is intentionally
