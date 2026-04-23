@@ -76,16 +76,25 @@ jobs:
 
           if az containerapp show -n "$APP_NAME" -g "$RESOURCE_GROUP" >/dev/null 2>&1; then
             echo "Updating existing containerapp..."
-            # Ensure new secrets / env-vars exist on existing apps too (idempotent)
-            az containerapp secret set \
-              -n "$APP_NAME" -g "$RESOURCE_GROUP" \
-              --secrets "gongdan-pepper=$GONGDAN_SYNTHETIC_PASSWORD_PEPPER" >/dev/null || true
-            az containerapp update \
-              -n "$APP_NAME" -g "$RESOURCE_GROUP" \
-              --image "$IMAGE_REF" \
-              --set-env-vars \
-                "GONGDAN_API_BASE=$GONGDAN_API_BASE" \
-                "GONGDAN_SYNTHETIC_PASSWORD_PEPPER=secretref:gongdan-pepper"
+            # Only push gongdan pepper if secret is populated (customer login path
+            # requires it; employee Casdoor path does not — skip gracefully).
+            if [ -n "${GONGDAN_SYNTHETIC_PASSWORD_PEPPER:-}" ]; then
+              az containerapp secret set \
+                -n "$APP_NAME" -g "$RESOURCE_GROUP" \
+                --secrets "gongdan-pepper=$GONGDAN_SYNTHETIC_PASSWORD_PEPPER" >/dev/null
+              az containerapp update \
+                -n "$APP_NAME" -g "$RESOURCE_GROUP" \
+                --image "$IMAGE_REF" \
+                --set-env-vars \
+                  "GONGDAN_API_BASE=$GONGDAN_API_BASE" \
+                  "GONGDAN_SYNTHETIC_PASSWORD_PEPPER=secretref:gongdan-pepper"
+            else
+              echo "⚠️  GONGDAN_SYNTHETIC_PASSWORD_PEPPER secret empty — customer login disabled until set"
+              az containerapp update \
+                -n "$APP_NAME" -g "$RESOURCE_GROUP" \
+                --image "$IMAGE_REF" \
+                --set-env-vars "GONGDAN_API_BASE=$GONGDAN_API_BASE"
+            fi
           else
             echo "Creating new containerapp..."
             az containerapp create \
