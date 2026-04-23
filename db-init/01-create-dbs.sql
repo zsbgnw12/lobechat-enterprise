@@ -1,9 +1,9 @@
--- Create both databases used by the enterprise stack.
--- POSTGRES_DB already creates the "enterprise_gateway" DB; this script adds the
--- "lobechat" DB used by the LobeChat server-mode image. Idempotent.
+-- Only the lobechat DB is needed. The old enterprise_gateway DB (used by the
+-- Fastify gateway/) has been retired with the gateway service; chat-gw is a
+-- remote Azure service that manages its own Postgres.
+--
+-- POSTGRES_DB already creates the primary database; this script is kept for
+-- backward compatibility when POSTGRES_DB is not `lobechat`.
 
 SELECT 'CREATE DATABASE lobechat'
 WHERE NOT EXISTS (SELECT FROM pg_database WHERE datname = 'lobechat')\gexec
-
-SELECT 'CREATE DATABASE enterprise_gateway'
-WHERE NOT EXISTS (SELECT FROM pg_database WHERE datname = 'enterprise_gateway')\gexec

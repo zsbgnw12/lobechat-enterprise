@@ -155,3 +155,4 @@ apps/desktop/resources/cli-package.json
 .env.pilot
 .env.auth
 .env.local
+.openapi.json

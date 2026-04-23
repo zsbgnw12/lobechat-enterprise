@@ -1,0 +1,134 @@
+name: Deploy to Azure Container Apps
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch: {}
+
+env:
+  ACR_NAME: lobechatacroperation
+  IMAGE_NAME: lobechat
+  RESOURCE_GROUP: Operation
+  APP_NAME: lobechat
+  ACA_ENV: lobechat-env
+  REGION: southeastasia
+  TARGET_PORT: '3210'
+
+permissions:
+  contents: read
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Azure login
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      # --- Build in ACR (cloud-side, cached) ---
+      - name: Build & push image with ACR Tasks
+        run: |
+          az acr build \
+            --registry "$ACR_NAME" \
+            --image "$IMAGE_NAME:${{ github.sha }}" \
+            --image "$IMAGE_NAME:latest" \
+            --file Dockerfile \
+            --build-arg USE_CN_MIRROR=true \
+            .
+
+      # --- Deploy to Container Apps ---
+      - name: Deploy to Container Apps
+        id: deploy
+        env:
+          # Secrets from GitHub → ACA secrets
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          KEY_VAULTS_SECRET: ${{ secrets.KEY_VAULTS_SECRET }}
+          AUTH_SECRET: ${{ secrets.AUTH_SECRET }}
+          CASDOOR_ID: ${{ secrets.CASDOOR_ID }}
+          CASDOOR_SECRET: ${{ secrets.CASDOOR_SECRET }}
+          # Public (non-secret) config
+          CASDOOR_ISSUER: https://casdoor.ashyglacier-8207efd2.eastasia.azurecontainerapps.io
+          CHAT_GW_URL: https://gaw-chat-tools-d0dhb6h2hwbac2ev.southeastasia-01.azurewebsites.net
+        run: |
+          set -euo pipefail
+
+          # ACR admin credentials so ACA can pull the image
+          az acr update -n "$ACR_NAME" --admin-enabled true >/dev/null
+          ACR_PW=$(az acr credential show -n "$ACR_NAME" --query 'passwords[0].value' -o tsv)
+
+          IMAGE_REF="$ACR_NAME.azurecr.io/$IMAGE_NAME:${{ github.sha }}"
+
+          # Detect existing app to decide create vs update
+          if az containerapp show -n "$APP_NAME" -g "$RESOURCE_GROUP" >/dev/null 2>&1; then
+            echo "Updating existing containerapp..."
+            # Keep existing secrets/env-vars; just roll the image
+            az containerapp update \
+              -n "$APP_NAME" -g "$RESOURCE_GROUP" \
+              --image "$IMAGE_REF"
+          else
+            echo "Creating new containerapp..."
+            # First-time create: plant all secrets + env vars.
+            # APP_URL is left to Container Apps FQDN; we patch it after we learn it.
+            az containerapp create \
+              -n "$APP_NAME" -g "$RESOURCE_GROUP" \
+              --environment "$ACA_ENV" \
+              --image "$IMAGE_REF" \
+              --target-port "$TARGET_PORT" \
+              --ingress external \
+              --registry-server "$ACR_NAME.azurecr.io" \
+              --registry-username "$ACR_NAME" \
+              --registry-password "$ACR_PW" \
+              --cpu 1.0 --memory 2.0Gi \
+              --min-replicas 1 --max-replicas 3 \
+              --secrets \
+                "database-url=$DATABASE_URL" \
+                "key-vaults-secret=$KEY_VAULTS_SECRET" \
+                "auth-secret=$AUTH_SECRET" \
+                "casdoor-id=$CASDOOR_ID" \
+                "casdoor-secret=$CASDOOR_SECRET" \
+              --env-vars \
+                "DATABASE_URL=secretref:database-url" \
+                "DATABASE_DRIVER=node" \
+                "KEY_VAULTS_SECRET=secretref:key-vaults-secret" \
+                "AUTH_SECRET=secretref:auth-secret" \
+                "AUTH_SSO_PROVIDERS=casdoor" \
+                "AUTH_CASDOOR_ID=secretref:casdoor-id" \
+                "AUTH_CASDOOR_SECRET=secretref:casdoor-secret" \
+                "AUTH_CASDOOR_ISSUER=$CASDOOR_ISSUER" \
+                "CHAT_GW_URL=$CHAT_GW_URL" \
+                "S3_ENDPOINT=http://s3-disabled.local" \
+                "S3_ACCESS_KEY_ID=disabled" \
+                "S3_SECRET_ACCESS_KEY=disabled" \
+                "S3_BUCKET=disabled" \
+                "FEATURE_FLAGS=-market,-check_updates,-welcome_suggest,-cloud_promotion,-changelog,-agent_onboarding,+commercial_hide_github,+commercial_hide_docs" \
+                "NEXT_PUBLIC_BASE_PATH=" \
+                "NODE_ENV=production"
+          fi
+
+          # Resolve FQDN and set APP_URL = https://<fqdn>
+          FQDN=$(az containerapp show -n "$APP_NAME" -g "$RESOURCE_GROUP" \
+            --query 'properties.configuration.ingress.fqdn' -o tsv)
+          APP_URL="https://$FQDN"
+          echo "FQDN: $FQDN"
+          echo "APP_URL: $APP_URL"
+          echo "app_url=$APP_URL" >> "$GITHUB_OUTPUT"
+
+          # Ensure APP_URL env var is set / up-to-date (idempotent)
+          az containerapp update \
+            -n "$APP_NAME" -g "$RESOURCE_GROUP" \
+            --set-env-vars "APP_URL=$APP_URL" >/dev/null
+
+      - name: Output deployed URL
+        run: |
+          echo "::notice title=Deployed::${{ steps.deploy.outputs.app_url }}"
+          echo "### ✅ Deployed to: ${{ steps.deploy.outputs.app_url }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "⚠️ 首次部署后,记得去 Casdoor 后台把以下 URL 加到 Application redirectUris:" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "\`${{ steps.deploy.outputs.app_url }}/api/auth/callback/casdoor\`" >> $GITHUB_STEP_SUMMARY

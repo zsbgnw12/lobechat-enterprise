@@ -1,0 +1,50 @@
+# Version control
+.git
+.gitignore
+.github
+
+# Node
+node_modules
+**/node_modules
+.next
+**/.next
+out
+dist
+build
+
+# Env / secrets
+.env
+.env.local
+.env.*.local
+.env.development
+.env.production
+
+# Editor / OS
+.vscode
+.idea
+.cursor
+.claude
+.DS_Store
+Thumbs.db
+.omc
+
+# Logs / caches
+*.log
+npm-debug.log*
+.npm
+.pnpm-store
+.cache
+.turbo
+
+# Tests / fixtures
+coverage
+e2e/test-results
+e2e/playwright-report
+
+# Docs not needed in runtime
+docs
+*.md
+README*
+
+# Legacy gateway (deleted but make sure)
+gateway
