@@ -181,6 +181,7 @@ export function defineConfig() {
     '/api/desktop/(.*)',
     // better auth
     '/signin',
+    '/signin/customer',
     '/signup',
     '/auth-error',
     '/verify-email',
