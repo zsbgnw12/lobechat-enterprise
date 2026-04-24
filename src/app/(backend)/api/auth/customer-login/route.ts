@@ -5,22 +5,17 @@
  *
  * 流程:
  *   1. 验证 customerCode 格式
- *   2. 调 gongdan /auth/customer-login 拿 JWT(实际权威验证在这一步)
- *   3. 查找/创建 Better Auth user(email = CUST-XXX@customer.local)
- *      - 密码 = HMAC(pepper, customerCode),客户永远不感知
- *   4. 用 Better Auth 原生 signInEmail 建立 session cookie
- *   5. 把 gongdan JWT 写进 account 表(providerId='gongdan-customer')
- *   6. 返回 { ok, redirectTo } + Set-Cookie
- *
- * 客户之后和普通员工用户一样使用 LobeChat,唯一区别是调 chat-gw 时
- * tokenStore 会优先用 gongdan-customer 的 JWT。
+ *   2. 调 gongdan /auth/customer-login 拿 JWT(实际权威验证)
+ *   3. 用 signUp/signIn 建立 Better Auth 会话(合成密码,客户不感知)
+ *      - 从返回对象直接拿 userId,不再做 email lookup(避开大小写/normalization 陷阱)
+ *   4. 把 gongdan JWT 写进 account 表(providerId='gongdan-customer')
+ *   5. 把 Better Auth Set-Cookie 透传给浏览器
  */
 import { and, eq } from 'drizzle-orm';
 import { type NextRequest, NextResponse } from 'next/server';
 
 import { auth } from '@/auth';
 import { account as accountsTable } from '@/database/schemas/betterAuth';
-import { users } from '@/database/schemas/user';
 import { serverDB } from '@/database/server';
 import {
   customerEmail,
@@ -31,6 +26,20 @@ import {
 } from '@/server/services/gongdan/customerAuth';
 
 const CUSTOMER_CODE_REGEX = /^[\w-]{1,32}$/u;
+
+/** 从 signUp 或 signIn 的返回里提取 userId。Better Auth 返回结构:
+ *   - signUpEmail → { user: { id, ... }, token }
+ *   - signInEmail → { user: { id, ... }, token, redirect? }
+ *  用 asResponse: true 时则是 Response,要读 body JSON。
+ */
+async function extractUserIdFromResponse(resp: Response): Promise<string | null> {
+  try {
+    const body = await resp.clone().json();
+    return body?.user?.id ?? body?.token?.userId ?? null;
+  } catch {
+    return null;
+  }
+}
 
 export async function POST(req: NextRequest) {
   let customerCode: string;
@@ -48,7 +57,7 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  // 1. 调 gongdan 验证 + 拿 token(失败直接透传 401)
+  // 1. gongdan 认证
   let gongdanResp;
   try {
     gongdanResp = await customerLogin(customerCode);
@@ -70,66 +79,72 @@ export async function POST(req: NextRequest) {
   const email = customerEmail(customerCode);
   const password = deriveSyntheticPassword(customerCode);
 
-  // 2. 查 user 是否已存在
-  const [existing] = await serverDB
-    .select({ id: users.id })
-    .from(users)
-    .where(eq(users.email, email))
-    .limit(1);
+  // 2. 先试 signIn(老客户);失败(401/INVALID_PASSWORD)就 signUp
+  let sessionResponse: Response | null = null;
+  let userId: string | null = null;
 
-  // 3. 不存在 → signUp;存在 → signIn
   try {
-    if (!existing) {
-      await auth.api.signUpEmail({
-        body: {
-          email,
-          name: customerCode,
-          password,
-        },
-      });
+    sessionResponse = (await auth.api.signInEmail({
+      asResponse: true,
+      body: { email, password },
+    })) as Response;
+
+    if (sessionResponse.status >= 200 && sessionResponse.status < 300) {
+      userId = await extractUserIdFromResponse(sessionResponse);
+    } else {
+      // signIn 失败(用户不存在) → 走 signUp
+      sessionResponse = null;
     }
   } catch (err) {
-    console.error('[customer-login] signUpEmail failed:', err);
-    return NextResponse.json(
-      { error: 'signup_failed', message: String((err as Error).message) },
-      { status: 500 },
+    // 异常也当 signIn 失败处理
+
+    console.warn(
+      '[customer-login] signIn first attempt failed, will signUp:',
+      (err as Error).message,
     );
   }
 
-  // 4. signInEmail —— 这一步会让 Better Auth 下发 session cookie
-  let signInResp;
-  try {
-    signInResp = await auth.api.signInEmail({
-      body: { email, password },
-      returnHeaders: true,
-    });
-  } catch (err) {
-    console.error('[customer-login] signInEmail failed:', err);
-    return NextResponse.json(
-      { error: 'signin_failed', message: String((err as Error).message) },
-      { status: 500 },
-    );
+  if (!sessionResponse) {
+    // signUp —— 自动创建 user + credential account + session
+    try {
+      sessionResponse = (await auth.api.signUpEmail({
+        asResponse: true,
+        body: { email, name: customerCode, password },
+      })) as Response;
+    } catch (err) {
+      console.error('[customer-login] signUpEmail threw:', err);
+      return NextResponse.json(
+        { error: 'signup_failed', message: String((err as Error).message) },
+        { status: 500 },
+      );
+    }
+
+    if (sessionResponse.status < 200 || sessionResponse.status >= 300) {
+      const text = await sessionResponse.clone().text();
+
+      console.error('[customer-login] signUpEmail non-2xx:', sessionResponse.status, text);
+      return NextResponse.json(
+        {
+          error: 'signup_failed',
+          message: `Better Auth ${sessionResponse.status}: ${text.slice(0, 200)}`,
+        },
+        { status: 500 },
+      );
+    }
+    userId = await extractUserIdFromResponse(sessionResponse);
   }
 
-  // 5. 查 userId(signUp 刚建的或已有的)
-  const [userRow] = await serverDB
-    .select({ id: users.id })
-    .from(users)
-    .where(eq(users.email, email))
-    .limit(1);
-
-  if (!userRow?.id) {
-    return NextResponse.json({ error: 'user_not_found_after_signup' }, { status: 500 });
+  if (!userId) {
+    console.error('[customer-login] userId not extracted from Better Auth response');
+    return NextResponse.json({ error: 'userid_extract_failed' }, { status: 500 });
   }
 
-  // 6. upsert gongdan-customer account 行,把 gongdan JWT 存进去
+  // 3. upsert gongdan-customer account 行
   const expiresAt = new Date(Date.now() + gongdanResp.expiresIn * 1000);
   const [existingAccount] = await serverDB
     .select({ id: accountsTable.id })
     .from(accountsTable)
-    .where(
-      and(eq(accountsTable.userId, userRow.id), eq(accountsTable.providerId, GONGDAN_PROVIDER_ID)),
-    )
+    .where(and(eq(accountsTable.userId, userId), eq(accountsTable.providerId, GONGDAN_PROVIDER_ID)))
     .limit(1);
 
   if (existingAccount) {
@@ -145,29 +160,23 @@ export async function POST(req: NextRequest) {
     await serverDB.insert(accountsTable).values({
       accessToken: gongdanResp.accessToken,
       accessTokenExpiresAt: expiresAt,
-      accountId: gongdanResp.user.id, // gongdan 的 customer UUID
+      accountId: gongdanResp.user.id,
       createdAt: new Date(),
       id: crypto.randomUUID(),
       providerId: GONGDAN_PROVIDER_ID,
       refreshToken: gongdanResp.refreshToken,
       updatedAt: new Date(),
-      userId: userRow.id,
+      userId,
     });
   }
 
-  // 7. 把 Better Auth 下发的 Set-Cookie 透传给客户浏览器
+  // 4. 透传 Better Auth 下发的 Set-Cookie 给浏览器
   const headers = new Headers();
-  const baSetCookie =
-    (signInResp as any)?.headers?.get?.('set-cookie') ??
-    (signInResp as any)?.response?.headers?.get?.('set-cookie');
-  if (baSetCookie) headers.append('set-cookie', baSetCookie);
+  const setCookie = sessionResponse.headers.get('set-cookie');
+  if (setCookie) headers.append('set-cookie', setCookie);
 
   return NextResponse.json(
-    {
-      customerCode,
-      ok: true,
-      redirectTo: '/chat',
-    },
+    { customerCode, ok: true, redirectTo: '/chat' },
     { headers, status: 200 },
   );
 }

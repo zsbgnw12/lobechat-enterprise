@@ -1,40 +1,15 @@
-import { BrandLoading, LobeHubText } from '@lobehub/ui/brand';
-
-import { isCustomBranding } from '@/const/version';
-
+// [enterprise-fork] 去掉 LobeHub 品牌加载动画 —— 统一用 CircleLoading。
 import CircleLoading from '../CircleLoading';
 import styles from './index.module.css';
 
 interface BrandTextLoadingProps {
-  debugId: string;
+  debugId?: string;
 }
 
-const BrandTextLoading = ({ debugId }: BrandTextLoadingProps) => {
-  if (isCustomBranding)
-    return (
-      <div className={styles.container}>
-        <CircleLoading />
-      </div>
-    );
-
-  const showDebug = process.env.NODE_ENV === 'development' && debugId;
-
+const BrandTextLoading = (_props: BrandTextLoadingProps) => {
   return (
     <div className={styles.container}>
-      <div aria-label="Loading" className={styles.brand} role="status">
-        <BrandLoading size={40} text={LobeHubText} />
-      </div>
-      {showDebug && (
-        <div className={styles.debug}>
-          <div className={styles.debugRow}>
-            <code>Debug ID:</code>
-            <span className={styles.debugTag}>
-              <code>{debugId}</code>
-            </span>
-          </div>
-          <div className={styles.debugHint}>only visible in development</div>
-        </div>
-      )}
+      <CircleLoading />
     </div>
   );
 };
