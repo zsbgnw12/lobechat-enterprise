@@ -1,11 +1,11 @@
 // Branding constants (de-branded for enterprise distribution).
 
-export const LOBE_CHAT_CLOUD = 'Enterprise AI Workspace';
+export const LOBE_CHAT_CLOUD = '超级运营中心';
 
-export const BRANDING_NAME = 'Enterprise AI Workspace';
+export const BRANDING_NAME = '超级运营中心';
 export const BRANDING_LOGO_URL = '/brand/logo.svg';
 
-export const ORG_NAME = 'Enterprise AI';
+export const ORG_NAME = '超级运营中心';
 
 export const BRANDING_URL = {
   help: undefined,

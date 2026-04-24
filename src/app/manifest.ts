@@ -5,7 +5,7 @@ const manifest = async (): Promise<MetadataRoute.Manifest> => {
   if (process.env.NODE_ENV === 'development') {
     return {
       background_color: '#000000',
-      description: 'Enterprise AI Workspace Development',
+      description: '超级运营中心 Development',
       display: 'standalone',
       icons: [
         {
@@ -14,8 +14,8 @@ const manifest = async (): Promise<MetadataRoute.Manifest> => {
           type: 'image/png',
         },
       ],
-      name: 'Enterprise AI Workspace',
-      short_name: 'Enterprise AI',
+      name: '超级运营中心',
+      short_name: '超级运营中心',
       start_url: '/',
       theme_color: '#000000',
     };
