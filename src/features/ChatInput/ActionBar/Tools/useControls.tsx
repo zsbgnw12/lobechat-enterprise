@@ -498,35 +498,79 @@ export const useControls = ({ setUpdating }: { setUpdating: (updating: boolean) 
     ...skillItems,
   ];
 
-  // [enterprise-fork] AI 网关(chat-gw)工具组 —— 按 category 排,每条一个 checkbox
-  // 项。勾选进 agent 的 plugin 白名单,下次发消息模型就能看到这个工具的 schema。
+  // [enterprise-fork] AI 网关(chat-gw)工具组 —— 按 **category 大类** 聚合,
+  // 每个大类是一个 checkbox。勾选 = 把该类下所有工具的 identifier 一次性加到
+  // agent.plugins;取消 = 一次性移除。模型发送时看到的是工具列表(仍然按工具级
+  // 过滤),只是 UI 把 N 个工具合并成 1 个类别 checkbox。
+  const CATEGORY_LABELS: Record<string, string> = {
+    cloud_cost: '云成本',
+    doc: '文档生成',
+    jina: 'Jina',
+    kb: '知识库',
+    sales: '销售',
+    sandbox: '代码沙箱',
+    ticket: '工单',
+    web: 'Web 搜索',
+  };
   const chatGwGroupChildren: ItemType[] = useMemo(() => {
     if (!chatGwTools || chatGwTools.length === 0) return [];
-    return chatGwTools.map((tool) => ({
-      icon: <Icon icon={McpIcon} size={SKILL_ICON_SIZE} />,
-      key: tool.identifier,
-      label: (
-        <ToolItem
-          checked={checked.includes(tool.identifier)}
-          id={tool.identifier}
-          label={tool.name}
-          onUpdate={async () => {
-            setUpdating(true);
-            await togglePlugin(tool.identifier);
-            setUpdating(false);
-          }}
-        />
-      ),
-      popoverContent: (
-        <ToolItemDetailPopover
-          description={tool.description ?? ''}
-          icon={<Icon icon={McpIcon} size={36} />}
-          identifier={tool.identifier}
-          sourceLabel="AI 网关"
-          title={tool.name}
-        />
-      ),
-    }));
+    // 按 category 分桶
+    const buckets = new Map<string, typeof chatGwTools>();
+    for (const t of chatGwTools) {
+      const c = t.category || 'other';
+      const arr = buckets.get(c);
+      if (arr) arr.push(t);
+      else buckets.set(c, [t]);
+    }
+    const categories = [...buckets.keys()].sort();
+
+    return categories.map((cat) => {
+      const toolsInCat = buckets.get(cat)!;
+      const ids = toolsInCat.map((t) => t.identifier);
+      const selectedCount = ids.filter((id) => checked.includes(id)).length;
+      const allChecked = selectedCount === ids.length && ids.length > 0;
+      const noneChecked = selectedCount === 0;
+      const label = CATEGORY_LABELS[cat] || cat;
+      const displayName = `${label} (${toolsInCat.length} 工具${
+        selectedCount > 0 && !allChecked ? ` · 已选 ${selectedCount}` : ''
+      })`;
+
+      return {
+        icon: <Icon icon={McpIcon} size={SKILL_ICON_SIZE} />,
+        key: `chatgw-cat-${cat}`,
+        label: (
+          <ToolItem
+            checked={allChecked}
+            id={`chatgw-cat-${cat}`}
+            label={displayName}
+            onUpdate={async () => {
+              setUpdating(true);
+              // 全选 / 取消全选:按当前是否有勾选决定方向
+              // - 有一个以上勾选 → 全部移除
+              // - 一个都没勾选 → 全部添加
+              const targetChecked = noneChecked;
+              for (const id of ids) {
+                const isIn = checked.includes(id);
+                if (targetChecked && !isIn) await togglePlugin(id);
+                else if (!targetChecked && isIn) await togglePlugin(id);
+              }
+              setUpdating(false);
+            }}
+          />
+        ),
+        popoverContent: (
+          <ToolItemDetailPopover
+            icon={<Icon icon={McpIcon} size={36} />}
+            identifier={`chatgw-cat-${cat}`}
+            sourceLabel="AI 网关"
+            title={label}
+            description={`该分类包含 ${toolsInCat.length} 个工具:\n${toolsInCat
+              .map((t) => `• ${t.name}`)
+              .join('\n')}`}
+          />
+        ),
+      };
+    });
   }, [chatGwTools, checked, togglePlugin, setUpdating]);
 
   // Build Community group children (Market Agent Skills + community plugins)

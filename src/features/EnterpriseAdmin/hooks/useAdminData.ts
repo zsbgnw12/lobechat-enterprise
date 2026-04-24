@@ -29,6 +29,14 @@ export const useGrants = () =>
 export const useCustomerGrants = () =>
   useSWR(SWR_KEYS.customerGrants, () => lambdaClient.enterpriseAdmin.listCustomerGrants.query());
 
+/** gongdan 客户名录,供下拉选择用。30s 去重。 */
+export const useGongdanCustomers = () =>
+  useSWR(
+    'enterpriseAdmin/gongdan-customers',
+    () => lambdaClient.enterpriseAdmin.listGongdanCustomers.query(),
+    { dedupingInterval: 30_000 },
+  );
+
 /** Audit 有过滤参数,SWR key 根据参数派生 */
 export const useAudit = (input: {
   cursor?: string;

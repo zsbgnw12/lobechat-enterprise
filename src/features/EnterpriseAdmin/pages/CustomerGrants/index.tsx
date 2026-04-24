@@ -1,5 +1,5 @@
 import { Flexbox } from '@lobehub/ui';
-import { Alert, Button, Checkbox, Form, Input, message, Modal, Select, Table, Tag } from 'antd';
+import { Alert, Button, Checkbox, Form, message, Modal, Select, Table, Tag } from 'antd';
 import { createStaticStyles } from 'antd-style';
 import { Plus, Trash2 } from 'lucide-react';
 import { memo, useMemo, useState } from 'react';
@@ -9,7 +9,12 @@ import { lambdaClient } from '@/libs/trpc/client/lambda';
 import PageHeader from '../../_layout/PageHeader';
 import PageBody from '../../components/PageBody';
 import TableToolbar from '../../components/TableToolbar';
-import { invalidate, useAdminTools, useCustomerGrants } from '../../hooks/useAdminData';
+import {
+  invalidate,
+  useAdminTools,
+  useCustomerGrants,
+  useGongdanCustomers,
+} from '../../hooks/useAdminData';
 
 const CUSTOMER_CODE_REGEX = /^[\w-]{1,32}$/u;
 
@@ -32,6 +37,7 @@ const styles = createStaticStyles(({ css, cssVar }) => ({
 const CustomerGrantsPage = memo(() => {
   const { data: tools, isLoading: tLoading } = useAdminTools(false); // 只管 enabled 工具
   const { data: grants, isLoading: gLoading } = useCustomerGrants();
+  const { data: gongdanCustomers, isLoading: cLoading } = useGongdanCustomers();
 
   const [search, setSearch] = useState('');
   const [categoryFilter, setCategoryFilter] = useState<string | undefined>();
@@ -256,15 +262,29 @@ const CustomerGrantsPage = memo(() => {
         >
           <Form layout="vertical">
             <Form.Item
-              extra="格式:CUST-C5265489(1-32 位,字母/数字/下划线/连字符)。不会立即创建任何东西,只是让它出现在矩阵里供你勾选。"
-              label="客户编号 (customer_code)"
+              extra="从工单系统拉取的客户名录;选中后该客户加入矩阵,勾选工具即开通授权"
+              label="选择客户"
             >
-              <Input
+              <Select
                 autoFocus
-                placeholder="CUST-C5265489"
-                value={newCustomerCode}
-                onChange={(e) => setNewCustomerCode(e.target.value)}
-                onPressEnter={handleAddCustomer}
+                showSearch
+                loading={cLoading}
+                notFoundContent={cLoading ? '加载中...' : '无匹配客户'}
+                placeholder="输入客户编号或名称搜索"
+                style={{ width: '100%' }}
+                value={newCustomerCode || undefined}
+                filterOption={(input, opt) => {
+                  const hay = String(opt?.label ?? '').toLowerCase();
+                  return hay.includes(input.toLowerCase());
+                }}
+                options={(gongdanCustomers ?? []).map((c) => ({
+                  disabled: allCustomers.includes(c.customerCode),
+                  label: `${c.customerCode} · ${c.name}${c.tier ? ` [${c.tier}]` : ''}${
+                    allCustomers.includes(c.customerCode) ? ' (已加入)' : ''
+                  }`,
+                  value: c.customerCode,
+                }))}
+                onChange={(v) => setNewCustomerCode(v as string)}
               />
             </Form.Item>
           </Form>

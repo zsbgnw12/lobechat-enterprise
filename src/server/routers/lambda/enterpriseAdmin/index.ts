@@ -33,6 +33,7 @@ import {
   GatewayAuthRequiredError,
   getCasdoorAccessToken,
 } from '@/server/services/chatGateway/tokenStore';
+import { listGongdanCustomers } from '@/server/services/gongdan/customerAuth';
 
 const adminProcedure = authedProcedure.use(serverDatabase).use(requireEnterpriseAdmin);
 
@@ -216,6 +217,15 @@ export const enterpriseAdminRouter = router({
         wrapAdminError(e);
       }
     }),
+
+  // ─── Gongdan customer list (for dropdown in CustomerGrants page) ──
+  listGongdanCustomers: adminProcedure.query(async () => {
+    try {
+      return await listGongdanCustomers();
+    } catch (e) {
+      wrapAdminError(e);
+    }
+  }),
 
   // ─── Audit ─────────────────────────────────────────────────────
   queryAudit: adminProcedure

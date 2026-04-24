@@ -63,9 +63,11 @@ jobs:
           CASDOOR_ID: ${{ secrets.CASDOOR_ID }}
           CASDOOR_SECRET: ${{ secrets.CASDOOR_SECRET }}
           GONGDAN_SYNTHETIC_PASSWORD_PEPPER: ${{ secrets.GONGDAN_SYNTHETIC_PASSWORD_PEPPER }}
+          GONGDAN_API_KEY: ${{ secrets.GONGDAN_API_KEY }}
           CASDOOR_ISSUER: https://casdoor.ashyglacier-8207efd2.eastasia.azurecontainerapps.io
           CHAT_GW_URL: https://gaw-chat-tools-d0dhb6h2hwbac2ev.southeastasia-01.azurewebsites.net
           GONGDAN_API_BASE: https://gongdan-b5fzbtgteqd5gzfb.eastasia-01.azurewebsites.net/api
+          ENTERPRISE_ADMIN_EMAIL: zsbgnw@gmail.com
         run: |
           set -euo pipefail
 
@@ -76,25 +78,29 @@ jobs:
 
           if az containerapp show -n "$APP_NAME" -g "$RESOURCE_GROUP" >/dev/null 2>&1; then
             echo "Updating existing containerapp..."
-            # Only push gongdan pepper if secret is populated (customer login path
-            # requires it; employee Casdoor path does not — skip gracefully).
+            # Build secret list (only non-empty) + env list
+            SECRET_ARGS=()
+            ENV_ARGS=(
+              "GONGDAN_API_BASE=$GONGDAN_API_BASE"
+              "ENTERPRISE_ADMIN_EMAIL=$ENTERPRISE_ADMIN_EMAIL"
+            )
             if [ -n "${GONGDAN_SYNTHETIC_PASSWORD_PEPPER:-}" ]; then
+              SECRET_ARGS+=("gongdan-pepper=$GONGDAN_SYNTHETIC_PASSWORD_PEPPER")
+              ENV_ARGS+=("GONGDAN_SYNTHETIC_PASSWORD_PEPPER=secretref:gongdan-pepper")
+            fi
+            if [ -n "${GONGDAN_API_KEY:-}" ]; then
+              SECRET_ARGS+=("gongdan-api-key=$GONGDAN_API_KEY")
+              ENV_ARGS+=("GONGDAN_API_KEY=secretref:gongdan-api-key")
+            fi
+            if [ "${#SECRET_ARGS[@]}" -gt 0 ]; then
               az containerapp secret set \
                 -n "$APP_NAME" -g "$RESOURCE_GROUP" \
-                --secrets "gongdan-pepper=$GONGDAN_SYNTHETIC_PASSWORD_PEPPER" >/dev/null
-              az containerapp update \
-                -n "$APP_NAME" -g "$RESOURCE_GROUP" \
-                --image "$IMAGE_REF" \
-                --set-env-vars \
-                  "GONGDAN_API_BASE=$GONGDAN_API_BASE" \
-                  "GONGDAN_SYNTHETIC_PASSWORD_PEPPER=secretref:gongdan-pepper"
-            else
-              echo "⚠️  GONGDAN_SYNTHETIC_PASSWORD_PEPPER secret empty — customer login disabled until set"
-              az containerapp update \
-                -n "$APP_NAME" -g "$RESOURCE_GROUP" \
-                --image "$IMAGE_REF" \
-                --set-env-vars "GONGDAN_API_BASE=$GONGDAN_API_BASE"
+                --secrets "${SECRET_ARGS[@]}" >/dev/null
             fi
+            az containerapp update \
+              -n "$APP_NAME" -g "$RESOURCE_GROUP" \
+              --image "$IMAGE_REF" \
+              --set-env-vars "${ENV_ARGS[@]}"
           else
             echo "Creating new containerapp..."
             az containerapp create \
@@ -115,6 +121,7 @@ jobs:
                 "casdoor-id=$CASDOOR_ID" \
                 "casdoor-secret=$CASDOOR_SECRET" \
                 "gongdan-pepper=$GONGDAN_SYNTHETIC_PASSWORD_PEPPER" \
+                "gongdan-api-key=$GONGDAN_API_KEY" \
               --env-vars \
                 "DATABASE_URL=secretref:database-url" \
                 "DATABASE_DRIVER=node" \
@@ -126,7 +133,9 @@ jobs:
                 "AUTH_CASDOOR_ISSUER=$CASDOOR_ISSUER" \
                 "CHAT_GW_URL=$CHAT_GW_URL" \
                 "GONGDAN_API_BASE=$GONGDAN_API_BASE" \
+                "GONGDAN_API_KEY=secretref:gongdan-api-key" \
                 "GONGDAN_SYNTHETIC_PASSWORD_PEPPER=secretref:gongdan-pepper" \
+                "ENTERPRISE_ADMIN_EMAIL=$ENTERPRISE_ADMIN_EMAIL" \
                 "S3_ENDPOINT=http://s3-disabled.local" \
                 "S3_ACCESS_KEY_ID=disabled" \
                 "S3_SECRET_ACCESS_KEY=disabled" \

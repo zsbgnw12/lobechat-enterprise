@@ -12,7 +12,7 @@ import { createSystemRole } from './systemRole';
 const WebOnboardingIdentifier = 'lobe-web-onboarding';
 
 export const WEB_ONBOARDING: BuiltinAgentDefinition = {
-  avatar: '/avatars/lobe-ai.png',
+  avatar: '/avatars/enterprise.png',
   persist: {
     model: DEFAULT_ONBOARDING_MODEL,
     provider: DEFAULT_PROVIDER,

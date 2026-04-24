@@ -122,3 +122,38 @@ export function customerEmail(customerCode: string): string {
 }
 
 export const GONGDAN_PROVIDER_ID = 'gongdan-customer';
+
+// ─── Admin API (调 gongdan 列客户,供"客户授权"页下拉用) ───────────
+
+export interface GongdanCustomer {
+  customerCode: string;
+  id: string;
+  name: string;
+  queueType?: string;
+  tier?: string;
+}
+
+/**
+ * 用 X-Api-Key 调 gongdan `/api/customers`,返回全量客户列表。
+ * 只在 LobeChat 后端执行,浏览器永远拿不到 API key。
+ */
+export async function listGongdanCustomers(): Promise<GongdanCustomer[]> {
+  const apiKey = process.env.GONGDAN_API_KEY;
+  if (!apiKey) throw new Error('GONGDAN_API_KEY env 未配置');
+  const resp = await fetch(`${baseUrl()}/customers`, {
+    headers: { 'X-Api-Key': apiKey },
+    method: 'GET',
+  });
+  if (!resp.ok) {
+    const text = await resp.text();
+    throw new GongdanAuthError(resp.status, text.slice(0, 200), undefined);
+  }
+  const rows = (await resp.json()) as GongdanCustomer[];
+  return rows.map((r) => ({
+    customerCode: r.customerCode,
+    id: r.id,
+    name: r.name,
+    queueType: r.queueType,
+    tier: r.tier,
+  }));
+}
