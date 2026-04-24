@@ -48,7 +48,7 @@ const MetaData = memo(() => {
                   zIndex: 10,
                 }}
               >
-                lobehub.com
+                超级运营中心
               </div>
               <Image
                 fill

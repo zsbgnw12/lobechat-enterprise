@@ -29,7 +29,7 @@
   "batchDelete": "Excluir em Lote",
   "blog": "Blog do Produto",
   "branching": "Criar Subtópico",
-  "branchingDisable": "O recurso \"Subtópico\" não está disponível no modo atual. Para usá-lo, alterne para o modo de banco de dados Postgres/PGlite ou utilize o Enterprise AI Workspace Cloud.",
+  "branchingDisable": "O recurso \"Subtópico\" não está disponível no modo atual. Para usá-lo, alterne para o modo de banco de dados Postgres/PGlite ou utilize o 超级运营中心 Cloud.",
   "branchingRequiresSavedTopic": "O tópico atual não está salvo, salve-o primeiro para usar o recurso de subtópico",
   "cancel": "Cancelar",
   "changelog": "Registro de Alterações",

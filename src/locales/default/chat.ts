@@ -158,7 +158,7 @@ export default {
   'historySummary': 'Historical Message Summary',
   'inactive': 'Inactive',
   'inbox.desc': 'Collaborate in one Workspace and move ideas into outcomes.',
-  'inbox.title': 'Enterprise AI',
+  'inbox.title': '超级运营中心',
   'input.addAi': 'Add an AI message',
   'input.addUser': 'Add a user message',
   'input.disclaimer': 'Agents can make mistakes. Use your judgment for critical info.',
@@ -404,7 +404,7 @@ export default {
   'sharePage.error.unauthorized.subtitle': 'Please sign in to view this shared topic.',
   'sharePage.error.unauthorized.title': 'Sign In Required',
   'sharePageDisclaimer':
-    'This content is shared by a user and does not represent the views of LobeHub. LobeHub is not responsible for any consequences arising from this shared content.',
+    'This content is shared by a user and does not represent the views of 超级运营中心. 超级运营中心 is not responsible for any consequences arising from this shared content.',
   'stt.action': 'Voice Input',
   'stt.loading': 'Recognizing...',
   'stt.prettifying': 'Polishing...',

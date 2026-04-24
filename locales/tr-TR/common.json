@@ -29,7 +29,7 @@
   "batchDelete": "Toplu Sil",
   "blog": "Ürün Blogu",
   "branching": "Alt Konu Oluştur",
-  "branchingDisable": "\"Alt Konu\" özelliği mevcut modda kullanılamaz. Bu özelliği kullanmak için lütfen Postgres/Pglite DB moduna geçin veya Enterprise AI Workspace Cloud'u kullanın.",
+  "branchingDisable": "\"Alt Konu\" özelliği mevcut modda kullanılamaz. Bu özelliği kullanmak için lütfen Postgres/Pglite DB moduna geçin veya 超级运营中心 Cloud'u kullanın.",
   "branchingRequiresSavedTopic": "Geçerli konu kaydedilmedi, alt konu özelliğini kullanmak için lütfen önce kaydedin",
   "cancel": "İptal",
   "changelog": "Değişiklik Günlüğü",

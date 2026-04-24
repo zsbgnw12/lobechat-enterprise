@@ -357,7 +357,7 @@
   "sharePage.error.unauthorized.action": "サインイン",
   "sharePage.error.unauthorized.subtitle": "この共有されたトピックを表示するには、サインインしてください。",
   "sharePage.error.unauthorized.title": "サインインが必要です",
-  "sharePageDisclaimer": "このコンテンツはユーザーによって共有されたものであり、Enterprise AI Workspace の見解を示すものではありません。Enterprise AI Workspace は、この共有コンテンツに起因するいかなる結果についても責任を負いません。",
+  "sharePageDisclaimer": "このコンテンツはユーザーによって共有されたものであり、超级运营中心 の見解を示すものではありません。超级运营中心 は、この共有コンテンツに起因するいかなる結果についても責任を負いません。",
   "stt.action": "音声入力",
   "stt.loading": "認識中…",
   "stt.prettifying": "推敲中…",

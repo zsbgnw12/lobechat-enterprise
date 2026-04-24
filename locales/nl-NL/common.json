@@ -29,7 +29,7 @@
   "batchDelete": "Batch verwijderen",
   "blog": "Productblog",
   "branching": "Subonderwerp aanmaken",
-  "branchingDisable": "De functie \"Subonderwerp\" is niet beschikbaar in de huidige modus. Schakel over naar Postgres/PGlite DB-modus of gebruik Enterprise AI Workspace Cloud om deze functie te gebruiken.",
+  "branchingDisable": "De functie \"Subonderwerp\" is niet beschikbaar in de huidige modus. Schakel over naar Postgres/PGlite DB-modus of gebruik 超级运营中心 Cloud om deze functie te gebruiken.",
   "branchingRequiresSavedTopic": "Huidig onderwerp is niet opgeslagen, sla het eerst op om subonderwerpen te kunnen gebruiken",
   "cancel": "Annuleren",
   "changelog": "Wijzigingslogboek",

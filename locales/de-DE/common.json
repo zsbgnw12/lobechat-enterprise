@@ -29,7 +29,7 @@
   "batchDelete": "Mehrfach löschen",
   "blog": "Produkt-Blog",
   "branching": "Unterthema erstellen",
-  "branchingDisable": "Die Funktion „Unterthema“ ist im aktuellen Modus nicht verfügbar. Bitte wechseln Sie in den Postgres/PGlite-DB-Modus oder nutzen Sie Enterprise AI Workspace Cloud.",
+  "branchingDisable": "Die Funktion „Unterthema“ ist im aktuellen Modus nicht verfügbar. Bitte wechseln Sie in den Postgres/PGlite-DB-Modus oder nutzen Sie 超级运营中心 Cloud.",
   "branchingRequiresSavedTopic": "Das aktuelle Thema ist nicht gespeichert. Bitte speichern Sie es zuerst, um die Unterthema-Funktion zu nutzen.",
   "cancel": "Abbrechen",
   "changelog": "Änderungsprotokoll",

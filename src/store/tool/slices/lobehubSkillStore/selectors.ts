@@ -96,7 +96,7 @@ export const lobehubSkillStoreSelectors = {
           manifest: {
             api: apis,
             author: 'LobeHub Market',
-            homepage: 'https://lobehub.com/market',
+            homepage: '',
             identifier: server.identifier,
             meta: {
               avatar: server.icon || '🔗',

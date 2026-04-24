@@ -29,7 +29,7 @@
   "batchDelete": "一括削除",
   "blog": "製品ブログ",
   "branching": "サブトピックを作成",
-  "branchingDisable": "現在のモードでは「サブトピック」機能は利用できません。この機能を使用するには、Postgres/Pglite DB モードに切り替えるか、Enterprise AI Workspace Cloud をご利用ください",
+  "branchingDisable": "現在のモードでは「サブトピック」機能は利用できません。この機能を使用するには、Postgres/Pglite DB モードに切り替えるか、超级运营中心 Cloud をご利用ください",
   "branchingRequiresSavedTopic": "現在のトピックが保存されていません。保存後にサブトピック機能を使用できます",
   "cancel": "キャンセル",
   "changelog": "更新履歴",
