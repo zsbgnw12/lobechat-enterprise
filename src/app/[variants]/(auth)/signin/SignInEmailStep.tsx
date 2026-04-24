@@ -1,25 +1,14 @@
 import { BRANDING_NAME } from '@lobechat/business-const';
-import { Alert, Button, Flexbox, Icon, Input, Skeleton, Text } from '@lobehub/ui';
-import { type FormInstance, type InputRef } from 'antd';
-import { Badge, Divider, Form } from 'antd';
-import { createStaticStyles } from 'antd-style';
-import { ChevronRight, Mail } from 'lucide-react';
+import { Alert, Button, Flexbox, Icon, Skeleton, Text } from '@lobehub/ui';
+import { type FormInstance } from 'antd';
+import { Badge, Divider } from 'antd';
 import Link from 'next/link';
-import { useEffect, useRef } from 'react';
 import { Trans, useTranslation } from 'react-i18next';
 
 import AuthIcons from '@/components/AuthIcons';
 import { PRIVACY_URL, TERMS_URL } from '@/const/url';
 
 import AuthCard from '../../../../features/AuthCard';
-
-const styles = createStaticStyles(({ css, cssVar }) => ({
-  setPasswordLink: css`
-    cursor: pointer;
-    color: ${cssVar.colorPrimary};
-    text-decoration: underline;
-  `,
-}));
 
 export const EMAIL_REGEX = /^[^\s@]+@[^\s@][^\s.@]*\.[^\s@]+$/;
 export const USERNAME_REGEX = /^\w+$/;
@@ -41,24 +30,13 @@ export interface SignInEmailStepProps {
 
 export const SignInEmailStep = ({
   businessElement,
-  disableEmailPassword,
-  form,
-  isSocialOnly,
   lastAuthProvider,
-  loading,
   oAuthSSOProviders,
   serverConfigInit,
   socialLoading,
-  onCheckUser,
-  onSetPassword,
   onSocialSignIn,
 }: SignInEmailStepProps) => {
   const { t } = useTranslation('auth');
-  const emailInputRef = useRef<InputRef>(null);
-
-  useEffect(() => {
-    emailInputRef.current?.focus();
-  }, []);
 
   const divider = (
     <Divider>
@@ -141,10 +119,7 @@ export const SignInEmailStep = ({
                 {getProviderLabel(provider)}
               </Button>
             );
-            const showLastUsed =
-              provider === lastAuthProvider &&
-              (oAuthSSOProviders.length > 1 ||
-                (oAuthSSOProviders.length === 1 && !disableEmailPassword));
+            const showLastUsed = provider === lastAuthProvider && oAuthSSOProviders.length > 1;
             return showLastUsed ? (
               <Badge.Ribbon
                 color="var(--ant-color-info-fill-tertiary)"
@@ -159,78 +134,12 @@ export const SignInEmailStep = ({
             );
           })}
           {businessElement}
-          {!disableEmailPassword && divider}
         </Flexbox>
       )}
-      {serverConfigInit && disableEmailPassword && oAuthSSOProviders.length === 0 && (
+      {serverConfigInit && oAuthSSOProviders.length === 0 && (
         <Alert showIcon description={t('betterAuth.signin.ssoOnlyNoProviders')} type="warning" />
       )}
-      {!disableEmailPassword && (
-        <Form
-          form={form}
-          layout="vertical"
-          onFinish={(values) => onCheckUser(values as { email: string })}
-        >
-          <Form.Item
-            name="email"
-            style={{ marginBottom: 0 }}
-            rules={[
-              { message: t('betterAuth.errors.emailRequired'), required: true },
-              {
-                validator: (_, value) => {
-                  if (!value) return Promise.resolve();
-                  const trimmedValue = (value as string).trim();
-                  if (EMAIL_REGEX.test(trimmedValue) || USERNAME_REGEX.test(trimmedValue)) {
-                    return Promise.resolve();
-                  }
-                  return Promise.reject(new Error(t('betterAuth.errors.emailInvalid')));
-                },
-              },
-            ]}
-          >
-            <Input
-              placeholder={t('betterAuth.signin.emailPlaceholder')}
-              ref={emailInputRef}
-              size="large"
-              prefix={
-                <Icon
-                  icon={Mail}
-                  style={{
-                    marginInline: 6,
-                  }}
-                />
-              }
-              style={{
-                padding: 6,
-              }}
-              suffix={
-                <Button
-                  icon={ChevronRight}
-                  loading={loading}
-                  title={t('betterAuth.signin.nextStep')}
-                  variant={'filled'}
-                  onClick={() => form.submit()}
-                />
-              }
-            />
-          </Form.Item>
-        </Form>
-      )}
-      {isSocialOnly && (
-        <Alert
-          showIcon
-          style={{ marginTop: 12 }}
-          type="info"
-          description={
-            <>
-              {t('betterAuth.signin.socialOnlyHint')}{' '}
-              <a className={styles.setPasswordLink} onClick={onSetPassword}>
-                {t('betterAuth.signin.setPassword')}
-              </a>
-            </>
-          }
-        />
-      )}
+      {/* [enterprise-fork] 邮箱/密码登录已禁用 —— 员工走 Casdoor,客户走下方客户编号入口 */}
       {/* [enterprise-fork] 客户编号登录入口(走 gongdan /api/auth/customer-login) */}
       <Divider style={{ marginBlock: 4 }}>
         <Text fontSize={11} type={'secondary'}>
