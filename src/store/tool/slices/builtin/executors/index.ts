@@ -94,6 +94,40 @@ export const invokeExecutor = async (
   params: any,
   ctx: BuiltinToolContext,
 ): Promise<BuiltinToolResult> => {
+  // [enterprise-fork] chat-gw 工具(识别前缀 `chatgw-`)在客户端注册表里
+  // 不注册单独 executor ——统一代理到服务端 tRPC chatGateway.callTool。
+  // 服务端再调 chat-gw MCP 拿到结果,返回后这里把结果包成 BuiltinToolResult。
+  if (identifier.startsWith('chatgw-')) {
+    const toolName = chatGwIdentifierToName(identifier);
+    try {
+      const { lambdaClient } = await import('@/libs/trpc/client/lambda');
+      const resp = await lambdaClient.chatGateway.callTool.mutate({
+        arguments: params ?? {},
+        name: toolName,
+      });
+      // resp.content: Array<{ type: 'text'; text?: string }>
+      const text =
+        resp?.content?.find((c: any) => c.type === 'text')?.text ??
+        JSON.stringify(resp?.content ?? resp, null, 2);
+      if (resp?.isError) {
+        return {
+          content: text,
+          error: { message: 'chat-gw tool returned isError', type: 'ToolIsError' },
+          success: false,
+        };
+      }
+      return { content: text, success: true };
+    } catch (e) {
+      return {
+        error: {
+          message: e instanceof Error ? e.message : String(e),
+          type: 'ChatGwInvokeError',
+        },
+        success: false,
+      };
+    }
+  }
+
   const executor = executorRegistry.get(identifier);
 
   if (!executor) {
@@ -118,6 +152,14 @@ export const invokeExecutor = async (
 
   return executor.invoke(apiName, params, ctx);
 };
+
+/** `chatgw-cloud_cost-dashboard_overview` → `cloud_cost.dashboard_overview` */
+function chatGwIdentifierToName(id: string): string {
+  const body = id.slice(7);
+  const dash = body.indexOf('-');
+  if (dash === -1) return body;
+  return body.slice(0, dash) + '.' + body.slice(dash + 1);
+}
 
 /**
  * Register builtin tool executor instances
