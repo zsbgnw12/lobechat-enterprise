@@ -55,6 +55,12 @@ export const getExecutor = (identifier: string): IBuiltinToolExecutor | undefine
  * @returns Whether the executor exists and supports the API
  */
 export const hasExecutor = (identifier: string, apiName: string): boolean => {
+  // [enterprise-fork] chat-gw 工具不在本地 registry,但由 invokeExecutor 代理到
+  // 服务端 tRPC chatGateway.callTool 执行。必须声明 hasExecutor=true 才能走到
+  // pluginTypes.ts 的 tool store 分支(line 58),否则会 fall through 到
+  // "No executor found" 返回空内容。
+  if (identifier.startsWith('chatgw-')) return true;
+
   const executor = executorRegistry.get(identifier);
   return executor?.hasApi(apiName) ?? false;
 };
