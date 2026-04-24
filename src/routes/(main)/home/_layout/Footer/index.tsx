@@ -4,19 +4,9 @@ import { SOCIAL_URL } from '@lobechat/business-const';
 import { isDesktop } from '@lobechat/const';
 import { useAnalytics } from '@lobehub/analytics/react';
 import { type MenuProps } from '@lobehub/ui';
-import { ActionIcon, DropdownMenu, Flexbox, Icon } from '@lobehub/ui';
-import { DiscordIcon, GithubIcon } from '@lobehub/ui/icons';
-import {
-  Book,
-  CircleHelp,
-  Feather,
-  FileClockIcon,
-  FlaskConical,
-  MessageCircle,
-  Rocket,
-  Settings2,
-  SettingsIcon,
-} from 'lucide-react';
+import { ActionIcon, Flexbox, Icon } from '@lobehub/ui';
+import { GithubIcon } from '@lobehub/ui/icons';
+import { FlaskConical, SettingsIcon } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { memo, useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -358,14 +348,7 @@ const Footer = memo(() => {
       {footer.layout === 'expanded' ? (
         <Flexbox horizontal align={'center'} gap={2} justify={'space-between'} padding={8}>
           <Flexbox horizontal align={'center'} flex={1} gap={2}>
-            <DropdownMenu items={helpMenuItems} placement="topLeft">
-              <ActionIcon
-                aria-label={t('userPanel.help')}
-                data-billboard-anchor=""
-                icon={CircleHelp}
-                size={16}
-              />
-            </DropdownMenu>
+            {/* [enterprise-fork] 去掉 "帮助中心" 按钮 */}
             {!footer.hideGitHub && (
               <a aria-label={'GitHub'} href={GITHUB} rel="noopener noreferrer" target={'_blank'}>
                 <ActionIcon icon={GithubIcon} size={16} title={'GitHub'} />
@@ -379,9 +362,7 @@ const Footer = memo(() => {
         </Flexbox>
       ) : (
         <Flexbox horizontal align={'center'} gap={2} padding={8}>
-          <DropdownMenu items={helpMenuItems} placement="topLeft">
-            <ActionIcon aria-label={t('userPanel.help')} icon={CircleHelp} size={16} />
-          </DropdownMenu>
+          {/* [enterprise-fork] 去掉 "帮助中心" 按钮 */}
           {isDevMode && (
             <Link to="/settings" onMouseEnter={() => prefetchRoute('/settings')}>
               <ActionIcon

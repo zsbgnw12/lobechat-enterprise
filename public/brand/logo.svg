@@ -1,4 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64" role="img" aria-label="EAI">
-  <rect x="2" y="2" width="60" height="60" rx="14" ry="14" fill="#9ca3af"/>
-  <text x="32" y="40" text-anchor="middle" font-family="system-ui, -apple-system, Segoe UI, Helvetica, Arial, sans-serif" font-size="22" font-weight="700" fill="#ffffff">EAI</text>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64" role="img" aria-label="超级运营中心">
+  <rect x="2" y="2" width="60" height="60" rx="14" ry="14" fill="#2563eb"/>
+  <text x="32" y="40" text-anchor="middle" font-family="system-ui, -apple-system, Segoe UI, Helvetica, Arial, sans-serif" font-size="22" font-weight="700" fill="#ffffff">运营</text>
 </svg>
