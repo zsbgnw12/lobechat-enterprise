@@ -22,6 +22,9 @@ const styles = createStaticStyles(({ css, cssVar }) => ({
   cellBusy: css`
     opacity: 0.4;
   `,
+  categoryRow: css`
+    background: ${cssVar.colorFillTertiary};
+  `,
   customerHeader: css`
     min-width: 140px;
     font-family: ui-monospace, SFMono-Regular, monospace;
@@ -33,6 +36,16 @@ const styles = createStaticStyles(({ css, cssVar }) => ({
     color: ${cssVar.colorTextSecondary};
   `,
 }));
+
+interface TreeRow {
+  category: string;
+  children?: TreeRow[];
+  display_name?: string | null;
+  isCategory?: boolean;
+  key: string;
+  name: string;
+  toolNames?: string[]; // 只在 category 行
+}
 
 const CustomerGrantsPage = memo(() => {
   const { data: tools, isLoading: tLoading } = useAdminTools(false); // 只管 enabled 工具
@@ -70,7 +83,8 @@ const CustomerGrantsPage = memo(() => {
     return [...set].sort();
   }, [tools]);
 
-  const filteredTools = useMemo(() => {
+  // 分类 tree:category 节点 + 子工具节点
+  const treeData = useMemo<TreeRow[]>(() => {
     let list = tools ?? [];
     if (search.trim()) {
       const kw = search.toLowerCase();
@@ -81,7 +95,31 @@ const CustomerGrantsPage = memo(() => {
       );
     }
     if (categoryFilter) list = list.filter((t) => t.category === categoryFilter);
-    return list;
+
+    const buckets = new Map<string, typeof list>();
+    for (const t of list) {
+      const c = t.category || 'other';
+      const arr = buckets.get(c);
+      if (arr) arr.push(t);
+      else buckets.set(c, [t]);
+    }
+
+    return [...buckets.entries()]
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([cat, arr]) => ({
+        category: cat,
+        children: arr.map((t) => ({
+          category: cat,
+          display_name: t.display_name,
+          key: t.name,
+          name: t.name,
+        })),
+        display_name: `(${arr.length} 工具)`,
+        isCategory: true,
+        key: `__cat__${cat}`,
+        name: cat,
+        toolNames: arr.map((t) => t.name),
+      }));
   }, [tools, search, categoryFilter]);
 
   const customerCounts = useMemo(() => {
@@ -116,13 +154,54 @@ const CustomerGrantsPage = memo(() => {
         toolName,
       });
       invalidate('customerGrants');
-      // 如果客户之前只是 extraCustomers 里的,取消最后一个授权后仍保留(方便继续配置)
     } catch (err: any) {
       message.error(err?.message ?? '切换失败');
     } finally {
       setBusy((b) => {
         const n = { ...b };
         delete n[k];
+        return n;
+      });
+    }
+  };
+
+  /** 分类级全选/全清:按当前状态决定方向,并发调 setCustomerGrant */
+  const handleToggleCategory = async (
+    customerCode: string,
+    category: string,
+    toolNames: string[],
+  ) => {
+    const targetChecked = toolNames.some((n) => !grantsSet.has(`${customerCode}|${n}`));
+    const busyKey = `__cat__${customerCode}|${category}`;
+    setBusy((b) => ({ ...b, [busyKey]: true }));
+    try {
+      await Promise.all(
+        toolNames.map((n) => {
+          const isIn = grantsSet.has(`${customerCode}|${n}`);
+          if (targetChecked && !isIn) {
+            return lambdaClient.enterpriseAdmin.setCustomerGrant.mutate({
+              customerCode,
+              granted: true,
+              toolName: n,
+            });
+          }
+          if (!targetChecked && isIn) {
+            return lambdaClient.enterpriseAdmin.setCustomerGrant.mutate({
+              customerCode,
+              granted: false,
+              toolName: n,
+            });
+          }
+          return null;
+        }),
+      );
+      invalidate('customerGrants');
+    } catch (err: any) {
+      message.error(err?.message ?? '批量切换失败');
+    } finally {
+      setBusy((b) => {
+        const n = { ...b };
+        delete n[busyKey];
         return n;
       });
     }
@@ -136,15 +215,35 @@ const CustomerGrantsPage = memo(() => {
   const customerColumn = (code: string) => ({
     align: 'center' as const,
     key: code,
-    render: (_: any, t: any) => {
-      const k = `${code}|${t.name}`;
-      const checked = grantsSet.has(k);
+    render: (_: any, r: TreeRow) => {
+      if (r.isCategory) {
+        const names = r.toolNames || [];
+        const selected = names.filter((n) => grantsSet.has(`${code}|${n}`));
+        const all = selected.length === names.length && names.length > 0;
+        const none = selected.length === 0;
+        const busyKey = `__cat__${code}|${r.category}`;
+        return (
+          <Flexbox gap={2} style={{ alignItems: 'center' }}>
+            <Checkbox
+              checked={all}
+              className={busy[busyKey] ? styles.cellBusy : undefined}
+              disabled={!!busy[busyKey]}
+              indeterminate={!all && !none}
+              onChange={() => handleToggleCategory(code, r.category, names)}
+            />
+            <span style={{ color: '#888', fontSize: 11 }}>
+              {selected.length}/{names.length}
+            </span>
+          </Flexbox>
+        );
+      }
+      const k = `${code}|${r.name}`;
       return (
         <Checkbox
-          checked={checked}
+          checked={grantsSet.has(k)}
           className={busy[k] ? styles.cellBusy : undefined}
           disabled={!!busy[k]}
-          onChange={(e) => handleToggle(code, t.name, e.target.checked)}
+          onChange={(e) => handleToggle(code, r.name, e.target.checked)}
         />
       );
     },
@@ -223,29 +322,29 @@ const CustomerGrantsPage = memo(() => {
         </TableToolbar>
 
         {allCustomers.length > 0 && (
-          <Table
+          <Table<TreeRow>
             sticky
-            dataSource={filteredTools}
+            dataSource={treeData}
             loading={tLoading || gLoading}
-            rowKey="name"
+            pagination={false}
+            rowClassName={(r) => (r.isCategory ? styles.categoryRow : '')}
+            rowKey="key"
             scroll={{ x: 'max-content' }}
             size="middle"
             columns={[
-              { dataIndex: 'category', key: 'category', title: '分类', width: 110 },
               {
                 dataIndex: 'name',
                 key: 'name',
-                render: (v: string) => <code>{v}</code>,
-                title: 'Name',
-                width: 240,
+                render: (v: string, r) => (r.isCategory ? <strong>{v}</strong> : <code>{v}</code>),
+                title: '工具 / 分类',
+                width: 280,
               },
               { dataIndex: 'display_name', key: 'display_name', title: '显示名' },
               ...allCustomers.map(customerColumn),
             ]}
-            pagination={{
-              defaultPageSize: 50,
-              showSizeChanger: true,
-              showTotal: (t) => `共 ${t} 个工具 · ${allCustomers.length} 个客户`,
+            expandable={{
+              defaultExpandAllRows: false,
+              indentSize: 16,
             }}
           />
         )}
