@@ -5,8 +5,17 @@ import { isDesktop } from '@lobechat/const';
 import { useAnalytics } from '@lobehub/analytics/react';
 import { type MenuProps } from '@lobehub/ui';
 import { ActionIcon, Flexbox, Icon } from '@lobehub/ui';
-import { GithubIcon } from '@lobehub/ui/icons';
-import { FlaskConical, SettingsIcon } from 'lucide-react';
+import { DiscordIcon, GithubIcon } from '@lobehub/ui/icons';
+import {
+  Book,
+  Feather,
+  FileClockIcon,
+  FlaskConical,
+  MessageCircle,
+  Rocket,
+  Settings2,
+  SettingsIcon,
+} from 'lucide-react';
 import type { ReactNode } from 'react';
 import { memo, useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
