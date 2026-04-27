@@ -17,7 +17,7 @@ const heihub: ModelProviderCard = {
   url: 'https://lobehub.com',
 };
 
-export default LobeHub;
+export default heihub;
 
 export const planCardModels = [
   'claude-sonnet-4-6',
