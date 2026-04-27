@@ -27,7 +27,7 @@ import { UserModel } from '@/database/models/user';
 import { authedProcedure, router } from '@/libs/trpc/lambda';
 import { serverDatabase } from '@/libs/trpc/lambda/middleware';
 import { KeyVaultsGateKeeper } from '@/server/modules/KeyVaultsEncrypt';
-import { FileS3 } from '@/server/modules/S3';
+import { createFileStorageClient } from '@/server/modules/fileStorage';
 import { AgentDocumentsService } from '@/server/services/agentDocuments';
 import { FileService } from '@/server/services/file';
 import { OnboardingService } from '@/server/services/onboarding';
@@ -172,7 +172,7 @@ export const userRouter = router({
         const base64Data = input.slice(commaIndex + 1);
 
         // Create S3 client
-        const s3 = new FileS3();
+        const s3 = createFileStorageClient();
 
         // Use UUID to generate unique filename to prevent caching issues
         // Get old avatar URL for later deletion

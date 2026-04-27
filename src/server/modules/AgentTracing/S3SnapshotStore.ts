@@ -1,7 +1,7 @@
 import type { ExecutionSnapshot, ISnapshotStore, SnapshotSummary } from '@lobechat/agent-tracing';
 import debug from 'debug';
 
-import { FileS3 } from '@/server/modules/S3';
+import { type FileStorageClient, createFileStorageClient } from '@/server/modules/fileStorage';
 
 const log = debug('lobe-server:agent-tracing:s3');
 
@@ -20,10 +20,10 @@ const TRACE_PREFIX = 'agent-traces';
  * The overhead (~100ms per step) is negligible vs LLM call time.
  */
 export class S3SnapshotStore implements ISnapshotStore {
-  private readonly s3: FileS3;
+  private readonly s3: FileStorageClient;
 
   constructor() {
-    this.s3 = new FileS3();
+    this.s3 = createFileStorageClient();
   }
 
   private partialKey(operationId: string): string {

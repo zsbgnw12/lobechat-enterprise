@@ -105,7 +105,7 @@ export class ServerSandboxService implements ISandboxService {
     log('Exporting file: %s from path: %s, topicId: %s', filename, path, this.topicId);
 
     try {
-      const s3 = new FileS3();
+      const s3 = createFileStorageClient();
 
       // Use date-based sharding for privacy compliance (GDPR, CCPA)
       const today = new Date().toISOString().split('T')[0];

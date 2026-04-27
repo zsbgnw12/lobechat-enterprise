@@ -222,7 +222,7 @@ class SkillServerRuntimeService implements SkillRuntimeService {
     }
 
     try {
-      const s3 = new FileS3();
+      const s3 = createFileStorageClient();
 
       // Use date-based sharding (same as market.ts)
       const today = new Date().toISOString().split('T')[0];

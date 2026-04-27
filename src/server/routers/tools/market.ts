@@ -11,7 +11,7 @@ import { authedProcedure, router } from '@/libs/trpc/lambda';
 import { marketUserInfo, serverDatabase, telemetry } from '@/libs/trpc/lambda/middleware';
 import { marketSDK, requireMarketAuth } from '@/libs/trpc/lambda/middleware/marketSDK';
 import { isTrustedClientEnabled } from '@/libs/trusted-client';
-import { FileS3 } from '@/server/modules/S3';
+import { createFileStorageClient } from '@/server/modules/fileStorage';
 import { DiscoverService } from '@/server/services/discover';
 import { FileService } from '@/server/services/file';
 import { MarketService } from '@/server/services/market';
@@ -646,7 +646,7 @@ export const marketRouter = router({
       log('Exporting and uploading file: %s from path: %s in topic: %s', filename, path, topicId);
 
       try {
-        const s3 = new FileS3();
+        const s3 = createFileStorageClient();
 
         // Use date-based sharding for privacy compliance (GDPR, CCPA)
         const today = new Date().toISOString().split('T')[0];

@@ -56,7 +56,7 @@ export class UserService {
   };
 
   getUserAvatar = async (id: string, image: string) => {
-    const s3 = new FileS3();
+    const s3 = createFileStorageClient();
     const s3FileUrl = `user/avatar/${id}/${image}`;
 
     try {
