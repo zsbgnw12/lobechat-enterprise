@@ -163,7 +163,7 @@ const persistNewToolCalls = async (
 
   // ─── PHASE 1: Write tools[] to assistant FIRST, WITHOUT result_msg_id ───
   //
-  // LobeHub's conversation-flow parser filters tool messages by matching
+  // heihub's conversation-flow parser filters tool messages by matching
   // `tool.tool_call_id` against `assistant.tools[].id`. If a tool message
   // exists in DB but no matching entry exists in assistant.tools[], the UI
   // renders an "orphan" warning telling the user to delete it.

@@ -57,7 +57,7 @@ export const VARIABLE_GENERATORS = {
    * |-------|---------|
    * | `{{email}}` | demo@lobehub.com |
    * | `{{nickname}}` | Community User |
-   * | `{{username}}` | LobeChat |
+   * | `{{username}}` | heichat |
    *
    */
   email: () => userProfileSelectors.email(useUserStore.getState()) ?? '',

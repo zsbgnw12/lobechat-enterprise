@@ -579,7 +579,7 @@ export class AiAgentService {
         return info?.abilities?.functionCall ?? true;
       };
 
-      // 5c. Fetch LobeHub Skills manifests
+      // 5c. Fetch heihub Skills manifests
       try {
         lobehubSkillManifests = await this.marketService.getLobehubSkillManifests();
       } catch (error) {
@@ -706,7 +706,7 @@ export class AiAgentService {
         LocalSystemManifest.identifier,
         RemoteDeviceManifest.identifier,
         ...(isBotConversation ? [MessageToolIdentifier] : []),
-        // Include LobeHub Skills and Klavis tools so they are passed to generateToolsDetailed
+        // Include heihub Skills and Klavis tools so they are passed to generateToolsDetailed
         ...lobehubSkillManifests.map((m) => m.identifier),
         ...klavisManifests.map((m) => m.identifier),
         // [enterprise-fork] 只加本人可见的企业工具 identifier 到 pluginIds。

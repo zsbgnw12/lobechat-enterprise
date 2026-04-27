@@ -29,9 +29,9 @@ export const LobeHubSkill: BuiltinSkill = {
   avatar: LOBEHUB_AVATAR,
   content: systemPrompt,
   description:
-    "Manage the LobeHub platform via the `lh` CLI — INCLUDING modifying THIS agent's own configuration. ACTIVATE this skill whenever the user asks you to: change your system prompt / instructions / persona, enable or disable tools / plugins / skills, switch model or provider, attach knowledge bases or files, edit the opening message, rename the topic, OR operate on any other platform resource (agents, topics, memory, documents, search, content generation, model/provider/plugin management, bot integrations, evals, usage stats). Without activation you cannot persist any change — you can only describe what you would do.",
+    "Manage the heihub platform via the `lh` CLI — INCLUDING modifying THIS agent's own configuration. ACTIVATE this skill whenever the user asks you to: change your system prompt / instructions / persona, enable or disable tools / plugins / skills, switch model or provider, attach knowledge bases or files, edit the opening message, rename the topic, OR operate on any other platform resource (agents, topics, memory, documents, search, content generation, model/provider/plugin management, bot integrations, evals, usage stats). Without activation you cannot persist any change — you can only describe what you would do.",
   identifier: LobeHubIdentifier,
-  name: 'LobeHub',
+  name: 'heihub',
   resources: toResourceMeta({
     'references/agent': agent,
     'references/bot': bot,

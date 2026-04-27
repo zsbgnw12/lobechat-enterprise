@@ -349,7 +349,7 @@ export const ProviderItemRender = memo<ProviderItemRenderProps>(
             title={name}
           />
         ) : (
-          // [enterprise-fork] upstream had a special-case <LobeHub.Morden />
+          // [enterprise-fork] upstream had a special-case <heihub.Morden />
           // for provider==='lobehub'; we fall through to the generic icon so
           // no LobeHub-branded logo is rendered in this enterprise build.
           <ProviderIcon provider={provider} size={size} type={type} />

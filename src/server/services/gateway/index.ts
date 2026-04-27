@@ -89,7 +89,7 @@ export class GatewayService {
 
   /**
    * Sync all enabled bots to the external message-gateway.
-   * Called on startup to recover connections after LobeHub restarts.
+   * Called on startup to recover connections after heihub restarts.
    */
   private async syncGatewayConnections(): Promise<void> {
     const { getServerDB } = await import('@/database/core/db-adaptor');

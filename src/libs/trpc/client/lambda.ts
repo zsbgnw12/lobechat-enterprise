@@ -43,7 +43,7 @@ const errorHandlingLink: TRPCLink<LambdaRouter> = () => {
               case 401: {
                 if (isMarketApi) {
                   // Market API 401: emit event for MarketAuthProvider to handle
-                  // Don't trigger LobeChat logout for market auth issues
+                  // Don't trigger heichat logout for market auth issues
                   const now = Date.now();
                   if (now - lastMarket401Time > MIN_401_INTERVAL) {
                     lastMarket401Time = now;
@@ -56,7 +56,7 @@ const errorHandlingLink: TRPCLink<LambdaRouter> = () => {
                     });
                   }
                 } else {
-                  // Non-market 401: handle as before (LobeChat session expired)
+                  // Non-market 401: handle as before (heichat session expired)
                   const now = Date.now();
                   if (now - last401Time > MIN_401_INTERVAL) {
                     last401Time = now;

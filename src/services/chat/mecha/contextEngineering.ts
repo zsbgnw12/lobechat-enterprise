@@ -234,7 +234,7 @@ export const contextEngineering = async ({
             const server = allKlavisServers.find((s) => s.identifier === klavisType.identifier);
 
             officialTools.push({
-              description: `LobeHub Mcp Server: ${klavisType.label}`,
+              description: `heihub Mcp Server: ${klavisType.label}`,
               enabled: enabledPlugins.includes(klavisType.identifier),
               identifier: klavisType.identifier,
               installed: !!server,
@@ -256,7 +256,7 @@ export const contextEngineering = async ({
             const server = allLobehubSkillServers.find((s) => s.identifier === provider.id);
 
             officialTools.push({
-              description: `LobeHub Skill Provider: ${provider.label}`,
+              description: `heihub Skill Provider: ${provider.label}`,
               enabled: enabledPlugins.includes(provider.id),
               identifier: provider.id,
               installed: !!server,
@@ -696,7 +696,7 @@ export const contextEngineering = async ({
       CREDS_LIST: () => (credsList ? generateCredsList(credsList) : ''),
       // NOTICE(@nekomeowww): required by builtin-tool-memory/src/systemRole.ts
       memory_effort: () => (userMemoryConfig ? (memoryContext?.effort ?? '') : ''),
-      // Current agent + topic identity — referenced by the LobeHub builtin
+      // Current agent + topic identity — referenced by the heihub builtin
       // skill (packages/builtin-skills/src/lobehub/content.ts) so the model
       // can run `lh agent run -a {{agent_id}}` etc without first having to
       // search for itself. Read lazily from stores so we only pay the cost

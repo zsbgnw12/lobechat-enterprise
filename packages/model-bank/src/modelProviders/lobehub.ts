@@ -1,13 +1,13 @@
 import type { ModelProviderCard } from '@/types/llm';
 
-const LobeHub: ModelProviderCard = {
+const heihub: ModelProviderCard = {
   chatModels: [],
   description:
-    'LobeHub Cloud uses official APIs to access AI models and measures usage with Credits tied to model tokens.',
+    'heihub Cloud uses official APIs to access AI models and measures usage with Credits tied to model tokens.',
   enabled: true,
   id: 'lobehub',
   modelsUrl: 'https://lobehub.com/zh/docs/usage/subscription/model-pricing',
-  name: 'LobeHub',
+  name: 'heihub',
   settings: {
     modelEditable: false,
     showAddNewModel: false,

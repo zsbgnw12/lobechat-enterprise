@@ -10,7 +10,7 @@
  * JWT 由 gongdan 用 HS256 + `GONGDAN_JWT_SECRET` 签。chat-gw 与 gongdan 共享同一个
  * secret,拿到 JWT 后看 `role: "CUSTOMER"` claim 自动走客户分支。
  *
- * 我们 LobeChat 这边完全不解 token,只透传。
+ * 我们 heichat 这边完全不解 token,只透传。
  */
 
 export class GongdanAuthError extends Error {
@@ -98,7 +98,7 @@ export async function refreshCustomerToken(refreshToken: string): Promise<Refres
 
 /**
  * 合成 Better Auth 登录密码。客户不感知密码,我们用服务端 pepper + customerCode
- * 推导出一个确定性密码。相同客户 → 相同密码 → 可反复登录同一个 LobeChat 用户。
+ * 推导出一个确定性密码。相同客户 → 相同密码 → 可反复登录同一个 heichat 用户。
  *
  * 安全性:pepper 不泄露,即使知道 customerCode 也无法反推密码;即使 DB 泄露
  * (Better Auth 存 bcrypt hash),没有 pepper 也无法批量暴破。
@@ -135,7 +135,7 @@ export interface GongdanCustomer {
 
 /**
  * 用 X-Api-Key 调 gongdan `/api/customers`,返回全量客户列表。
- * 只在 LobeChat 后端执行,浏览器永远拿不到 API key。
+ * 只在 heichat 后端执行,浏览器永远拿不到 API key。
  */
 export async function listGongdanCustomers(): Promise<GongdanCustomer[]> {
   const apiKey = process.env.GONGDAN_API_KEY;

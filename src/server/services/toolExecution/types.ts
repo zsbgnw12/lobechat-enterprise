@@ -9,7 +9,7 @@ export interface ToolExecutionContext {
   agentId?: string;
   /** Memory tool permission from agent chat config */
   memoryToolPermission?: 'read-only' | 'read-write';
-  /** Server database for LobeHub Skills execution */
+  /** Server database for heihub Skills execution */
   serverDB?: LobeChatDatabase;
   /** Task ID when executing within the Task system */
   taskId?: string;

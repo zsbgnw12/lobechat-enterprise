@@ -1,9 +1,9 @@
 /**
  * [enterprise-fork] chat-gw 的 access_token 两条来源:
  *
- *   1. **gongdan-customer**(LobeChat 客户登录,v0.2.1 新增)
+ *   1. **gongdan-customer**(heichat 客户登录,v0.2.1 新增)
  *      - 客户在 `/api/auth/customer-login` 输 customerCode
- *      - LobeChat 后端调 gongdan `/auth/customer-login` 拿 HS256 JWT
+ *      - heichat 后端调 gongdan `/auth/customer-login` 拿 HS256 JWT
  *      - 存进 `account` 表 providerId='gongdan-customer'
  *      - chat-gw 看 `role: "CUSTOMER"` claim,走客户分支
  *

@@ -19,7 +19,7 @@ import type { AdminNavItem } from './types';
  *   后 3 项是"AI 网关"(走 chat-gw `/mcp`,登录用户都能用自己角色的视角看)
  *
  * 用户/角色/数据范围/身份映射 4 页已删 —— Casdoor 管身份,chat-gw 的
- * user_passthrough 模式把 JWT 直透下游,不需要 LobeChat 本地映射表。
+ * user_passthrough 模式把 JWT 直透下游,不需要 heichat 本地映射表。
  */
 export const ADMIN_NAV_ITEMS: AdminNavItem[] = [
   {
@@ -41,7 +41,7 @@ export const ADMIN_NAV_ITEMS: AdminNavItem[] = [
     label: '角色授权',
   },
   {
-    description: '客户(customer_code)× 工具 的授权矩阵,LobeChat 客户场景',
+    description: '客户(customer_code)× 工具 的授权矩阵,heichat 客户场景',
     icon: Building2,
     key: 'customer-grants',
     label: '客户授权',

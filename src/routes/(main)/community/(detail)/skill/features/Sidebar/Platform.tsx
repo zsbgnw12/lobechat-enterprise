@@ -35,7 +35,7 @@ enum PlatformType {
   Cline = 'cline',
   Codex = 'codex',
   Cursor = 'cursor',
-  LobeHub = 'lobehub',
+  heihub = 'lobehub',
   VsCode = 'vscode',
 }
 
@@ -62,7 +62,7 @@ const genInstallCommand = (identifier?: string, platform?: PlatformType) => {
     [PlatformType.Claude]: 'claude-code',
     [PlatformType.Cline]: 'cline',
     [PlatformType.Cursor]: 'cursor',
-    [PlatformType.LobeHub]: 'lobehub',
+    [PlatformType.heihub]: 'lobehub',
     [PlatformType.Codex]: 'codex',
     [PlatformType.VsCode]: 'vscode',
   };
@@ -78,7 +78,7 @@ const genInstallCommand = (identifier?: string, platform?: PlatformType) => {
       return `npx -y @lobehub/market-cli skills install ${id} --agent ${agentMap[platform]}`;
     }
     default: {
-      return `# Recommended for LobeHub users:
+      return `# Recommended for heihub users:
 # Open the marketplace page and install with one click:
 # https://lobechat.com/community/skills/${id}`;
     }
@@ -98,13 +98,13 @@ const genLayout = (
     [PlatformType.Claude]: `~/.claude/skills/${id}`,
     [PlatformType.Cline]: `~/.cline/skills/${id}`,
     [PlatformType.Cursor]: `~/.cursor/skills/${id}`,
-    [PlatformType.LobeHub]: `<managed-by-lobehub>`,
+    [PlatformType.heihub]: `<managed-by-lobehub>`,
     [PlatformType.Codex]: `~/.agents/skills/${id}`,
     [PlatformType.VsCode]: `./.vscode/skills/${id}`,
   };
   const basePath = basePathMap[platform];
 
-  if (platform === PlatformType.LobeHub) {
+  if (platform === PlatformType.heihub) {
     return i18nText.lobehub;
   }
 
@@ -152,7 +152,7 @@ const Platform = memo<PlatformProps>(
 
     const { platform, steps } = useMemo(() => {
       switch (active) {
-        case PlatformType.LobeHub: {
+        case PlatformType.heihub: {
           return {
             platform: 'Enterprise AI',
             steps: t('skills.details.sidebar.platform.steps.lobehub'),
@@ -193,7 +193,7 @@ const Platform = memo<PlatformProps>(
 
     const command = genInstallCommand(identifier, active);
 
-    const agentPrompt = `Curl https://lobehub.com/skills/${identifier}/skill.md, then follow the instructions to set up LobeHub Skills Marketplace and install the skill. Once installed, read the SKILL.md file in the installed directory and follow its instructions to complete the task.`;
+    const agentPrompt = `Curl https://lobehub.com/skills/${identifier}/skill.md, then follow the instructions to set up heihub Skills Marketplace and install the skill. Once installed, read the SKILL.md file in the installed directory and follow its instructions to complete the task.`;
 
     const handleUseOnLobeAI = useCallback(() => {
       if (!inboxAgentId) return;

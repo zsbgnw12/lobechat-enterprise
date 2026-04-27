@@ -51,7 +51,7 @@ const Conversation = memo(() => {
   const actionsBarConfig = useActionsBarConfig();
 
   // Heterogeneous agents (Claude Code, etc.) use a simplified input — their
-  // toolchain/memory/model are managed by the external runtime, so LobeHub's
+  // toolchain/memory/model are managed by the external runtime, so heihub's
   // model/tools/memory/KB/MCP/runtime-mode pickers don't apply.
   const isHeterogeneousAgent = useAgentStore(agentSelectors.isCurrentAgentHeterogeneous);
 

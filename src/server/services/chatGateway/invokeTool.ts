@@ -1,5 +1,5 @@
 /**
- * [enterprise-fork] 把 LobeChat 聊天里 model function_call
+ * [enterprise-fork] 把 heichat 聊天里 model function_call
  *   (identifier 前缀 `chatgw-` → 原名 `cloud_cost.dashboard_overview` 这种)
  * 转发到 chat-gw MCP 的 tools/call。
  *

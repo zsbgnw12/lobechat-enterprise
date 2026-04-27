@@ -127,7 +127,7 @@ const buildVisibleMetaList = (
 
   // [enterprise-fork] chat-gw 工具通过 useInstalledSkillsAndTools hook 注入到
   // ChatInput 的 @ 菜单(src/features/ChatInput/InputEditor/ActionTag/...)。
-  // 此 selector 只负责 LobeChat 原生工具(builtin + Klavis)。
+  // 此 selector 只负责 heichat 原生工具(builtin + Klavis)。
   return [...skillMetas, ...agentSkillMetas, ...builtinMetas, ...getKlavisMetas(s)];
 };
 

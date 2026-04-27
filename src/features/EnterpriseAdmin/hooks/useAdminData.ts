@@ -1,7 +1,7 @@
 /**
  * [enterprise-fork] EnterpriseAdmin SWR hooks —— chat-gw `/admin/*` 封装
  *
- * 所有数据都来自 chat-gw 的 §9 Admin API。LobeChat 这边完全不存 admin 数据。
+ * 所有数据都来自 chat-gw 的 §9 Admin API。heichat 这边完全不存 admin 数据。
  */
 import useSWR, { mutate as globalMutate } from 'swr';
 

@@ -1,10 +1,10 @@
 /**
  * Enterprise Role Resolution Service
  *
- * 把 LobeChat 的 Better Auth user → Enterprise Gateway 的 6 角色之一映射起来。
+ * 把 heichat 的 Better Auth user → Enterprise Gateway 的 6 角色之一映射起来。
  *
  * ## 映射约定
- * 用户的 LobeChat 注册邮箱 local-part（`@` 之前的部分）就是 Gateway username。
+ * 用户的 heichat 注册邮箱 local-part（`@` 之前的部分）就是 Gateway username。
  * 例如：
  *   - `sa@enterprise.local`      → Gateway username `sa`   → super_admin
  *   - `sales1@yourco.com`        → Gateway username `sales1` → internal_sales
@@ -16,7 +16,7 @@
  * ## 调用路径
  * 此服务通过 HTTP 调 Gateway 的 `GET /api/me` 读取 roles，而不是直连 Gateway
  * 的 Postgres 数据库。原因：
- *   - 松耦合：LobeChat 和 Gateway 通过 HTTP 通信，Gateway 可以独立演进
+ *   - 松耦合：heichat 和 Gateway 通过 HTTP 通信，Gateway 可以独立演进
  *   - 身份桥雏形：这条 fetch 路径之后可以扩展为"调用工具时透传身份"
  *   - Gateway 的 JWKS/dev/M2M 三态鉴权在此路径统一处理
  *
@@ -34,7 +34,7 @@ import type { LobeChatDatabase } from '@/database/type';
 const log = debug('lobe-enterprise:role');
 
 export interface EnterpriseRoleInfo {
-  /** 是否视为 LobeChat 管理员(super_admin 等价) */
+  /** 是否视为 heichat 管理员(super_admin 等价) */
   isAdmin: boolean;
   /** 角色 key 数组。方案 X 下,直接来自 Casdoor JWT 的 `roles` claim
    *  (如 cloud_admin / cloud_ops / engineer-l3 等),不再由我们 gateway 维护。*/
@@ -47,8 +47,8 @@ const CACHE_TTL_MS = 5 * 60 * 1000;
 const cache = new Map<string, { info: EnterpriseRoleInfo; at: number }>();
 
 /**
- * [方案 X] Casdoor 角色 → LobeChat "管理员" 判定。
- * `cloud_admin` 视为 LobeChat super_admin 等价体(能 CRUD provider/model、
+ * [方案 X] Casdoor 角色 → heichat "管理员" 判定。
+ * `cloud_admin` 视为 heichat super_admin 等价体(能 CRUD provider/model、
  * 进企业管理页)。其他 Casdoor 角色(engineer-l3 等) / 非 Casdoor 用户都
  * 不是 admin。legacy `super_admin` / `permission_admin`(gateway `enterprise_roles`
  * 里的)也兼容保留,给老 sa 邮箱登录的场景。
@@ -93,7 +93,7 @@ function extractCasdoorRoles(payload: Record<string, any>): string[] {
 }
 
 /**
- * 读取某个 LobeChat 用户的企业角色。
+ * 读取某个 heichat 用户的企业角色。
  *
  * [方案 X] 角色从 Better Auth `accounts` 表里 Casdoor access_token 的 `roles`
  * claim 解出。如果当前用户不是 Casdoor 登录(邮箱密码注册的测试账号),roles

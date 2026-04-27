@@ -46,7 +46,7 @@ export class PluginTypesActionImpl {
       return await this.#get().invokeKlavisTypePlugin(id, payload);
     }
 
-    // Check if this is a LobeHub Skill tool by source field
+    // Check if this is a heihub Skill tool by source field
     if (payload.source === 'lobehubSkill') {
       return await this.#get().invokeLobehubSkillTypePlugin(id, payload);
     }

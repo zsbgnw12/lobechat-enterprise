@@ -12,7 +12,7 @@ vi.mock('electron', () => ({
     setApplicationMenu: vi.fn(),
   },
   app: {
-    getName: vi.fn(() => 'LobeChat'),
+    getName: vi.fn(() => 'heichat'),
   },
   shell: {
     openExternal: vi.fn(),

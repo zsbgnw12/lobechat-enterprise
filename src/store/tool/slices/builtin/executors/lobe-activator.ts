@@ -82,7 +82,7 @@ const service: ActivatorRuntimeService = {
         continue;
       }
 
-      // Search LobeHub Skill servers
+      // Search heihub Skill servers
       const lobehubSkillServer = s.lobehubSkillServers?.find(
         (server) => server.identifier === id && server.status === LobehubSkillStatus.CONNECTED,
       );

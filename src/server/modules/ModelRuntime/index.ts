@@ -167,7 +167,7 @@ const getParamsFromPayload = (provider: string, payload: ClientSecretPayload) =>
   const llmConfig = getLLMConfig() as Record<string, any>;
 
   switch (provider) {
-    case ModelProvider.LobeHub: {
+    case ModelProvider.heihub: {
       return { apikey: payload.apiKey, baseURL: payload.baseURL, ...payload };
     }
 

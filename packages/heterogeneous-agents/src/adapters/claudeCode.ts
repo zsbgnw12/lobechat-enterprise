@@ -3,7 +3,7 @@
  *
  * Converts Claude Code CLI `--output-format stream-json --verbose` (ndjson)
  * events into unified HeterogeneousAgentEvent[] that the executor feeds into
- * LobeHub's Gateway event handler.
+ * heihub's Gateway event handler.
  *
  * Stream-json event shapes (from real CLI output):
  *

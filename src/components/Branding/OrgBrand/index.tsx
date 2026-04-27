@@ -10,5 +10,5 @@ export const OrgBrand = memo<LobeHubProps>((props) => {
     return <span>{ORG_NAME}</span>;
   }
 
-  return <LobeHub {...props} />;
+  return <heihub {...props} />;
 });

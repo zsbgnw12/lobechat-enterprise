@@ -17,9 +17,9 @@ const getCanvasFingerprint = (): string => {
     ctx.fillStyle = '#f60';
     ctx.fillRect(40, 0, 62, 20);
     ctx.fillStyle = '#069';
-    ctx.fillText('LobeHub fp', 2, 15);
+    ctx.fillText('heihub fp', 2, 15);
     ctx.fillStyle = 'rgba(102,204,0,0.7)';
-    ctx.fillText('LobeHub fp', 4, 17);
+    ctx.fillText('heihub fp', 4, 17);
     return canvas.toDataURL();
   } catch {
     return '';

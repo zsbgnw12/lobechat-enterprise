@@ -208,7 +208,7 @@ export class MarketApiService {
   // ==================== Skills API ====================
 
   /**
-   * Search for skills in the LobeHub Market
+   * Search for skills in the heihub Market
    */
   async searchSkill(params: {
     category?: string;

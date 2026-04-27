@@ -150,7 +150,7 @@ export const createServerAgentToolsEngine = (
   );
 
   return createServerToolsEngine(context, {
-    // Pass additional manifests (e.g., LobeHub Skills)
+    // Pass additional manifests (e.g., heihub Skills)
     additionalManifests,
     // Add default tools based on configuration
     defaultToolIds,

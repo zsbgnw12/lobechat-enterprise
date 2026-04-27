@@ -14,25 +14,25 @@ import MCPList from './SkillList/MCP';
 
 export enum SkillStoreTab {
   Custom = 'custom',
-  LobeHub = 'lobehub',
+  heihub = 'lobehub',
   MCP = 'mcp',
   Skills = 'skills',
 }
 
 export const SkillStoreContent = () => {
   const { t } = useTranslation('setting');
-  const [activeTab, setActiveTab] = useState<SkillStoreTab>(SkillStoreTab.LobeHub);
+  const [activeTab, setActiveTab] = useState<SkillStoreTab>(SkillStoreTab.heihub);
   const [lobehubKeywords, setLobehubKeywords] = useState('');
   const [skillKeywords, setSkillKeywords] = useState('');
 
   const options: SegmentedOptions = [
-    { label: t('skillStore.tabs.lobehub'), value: SkillStoreTab.LobeHub },
+    { label: t('skillStore.tabs.lobehub'), value: SkillStoreTab.heihub },
     { label: 'Skills', value: SkillStoreTab.Skills },
     { label: t('skillStore.tabs.mcp'), value: SkillStoreTab.MCP },
     { label: t('skillStore.tabs.custom'), value: SkillStoreTab.Custom },
   ];
 
-  const isLobeHub = activeTab === SkillStoreTab.LobeHub;
+  const isLobeHub = activeTab === SkillStoreTab.heihub;
   const isSkills = activeTab === SkillStoreTab.Skills;
   const isMCP = activeTab === SkillStoreTab.MCP;
   const isCustom = activeTab === SkillStoreTab.Custom;

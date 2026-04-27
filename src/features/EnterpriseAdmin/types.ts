@@ -8,7 +8,7 @@
  *
  * 已删除:users / scopes / identity —— 这三项都是老 Fastify gateway 的本地
  * 数据库概念。现在用户/角色由 Casdoor 管、数据范围由 chat-gw
- * user_passthrough(JWT 直透)管,没有 "LobeChat 侧的映射表" 这层存在。
+ * user_passthrough(JWT 直透)管,没有 "heichat 侧的映射表" 这层存在。
  */
 import type { LucideIcon } from 'lucide-react';
 

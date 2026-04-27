@@ -86,7 +86,7 @@ export class BuiltinToolsExecutor implements IToolExecutor {
       });
     }
 
-    // Route LobeHub Skills to MarketService
+    // Route heihub Skills to MarketService
     if (source === 'lobehubSkill') {
       return this.marketService.executeLobehubSkill({
         args,

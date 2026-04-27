@@ -17,9 +17,9 @@ describe('SkillEngine', () => {
       name: 'Agent Browser',
     },
     {
-      description: 'LobeHub management',
+      description: 'heihub management',
       identifier: 'lobehub-cli',
-      name: 'LobeHub CLI',
+      name: 'heihub CLI',
     },
   ];
 

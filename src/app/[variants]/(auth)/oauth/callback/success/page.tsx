@@ -12,7 +12,7 @@ const SuccessPage = memo(() => {
   const [countdown, setCountdown] = useState(3);
 
   useEffect(() => {
-    // Check if this is a LobeHub Skill OAuth callback
+    // Check if this is a heihub Skill OAuth callback
     const provider = searchParams.get('provider');
 
     if (provider && window.opener) {

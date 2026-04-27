@@ -6,11 +6,11 @@
  *
  * **权限模型(A2 方案)**:chat-gw 这 5 个 procedure **不** 叠加
  * `requireEnterpriseAdmin`——授权完全交给 chat-gw 侧的 Casdoor 角色
- * (cloud_admin/ops/finance/viewer)。LobeChat 这边只管"调用者得登录 +
+ * (cloud_admin/ops/finance/viewer)。heichat 这边只管"调用者得登录 +
  * 有 Casdoor access_token",能不能看/调某工具由 chat-gw 过滤 tools/list
  * 和 tools/call 的 -32001 no_role 错误决定。
  *
- * LobeChat 自己的企业管理(Users/Roles/Scopes/IdentityMap/Audit 6 页)仍然
+ * heichat 自己的企业管理(Users/Roles/Scopes/IdentityMap/Audit 6 页)仍然
  * 走 requireEnterpriseAdmin,两套权限互不相欠。
  */
 import { TRPCError } from '@trpc/server';
@@ -30,7 +30,7 @@ import {
   getCasdoorAccessToken,
 } from '@/server/services/chatGateway/tokenStore';
 
-// [A2] 只要登录 + DB,不做 LobeChat 层的 admin 门控
+// [A2] 只要登录 + DB,不做 heichat 层的 admin 门控
 const gwProcedure = authedProcedure.use(serverDatabase);
 
 const wrapMcpError = (e: unknown): never => {

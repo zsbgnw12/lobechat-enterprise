@@ -12,7 +12,7 @@ vi.mock('electron', () => ({
     setApplicationMenu: vi.fn(),
   },
   app: {
-    getName: vi.fn(() => 'LobeChat'),
+    getName: vi.fn(() => 'heichat'),
     getVersion: vi.fn(() => '1.0.0'),
   },
   shell: {
@@ -78,7 +78,7 @@ const createMockApp = () => {
     const translations: Record<string, string> = {
       'about.title': 'About',
       'about.message': `${params?.appName || 'App'} ${params?.appVersion || '1.0.0'}`,
-      'about.detail': 'LobeChat Desktop Application',
+      'about.detail': 'heichat Desktop Application',
     };
     return translations[key] || key;
   });
@@ -519,7 +519,7 @@ describe('LinuxMenu', () => {
       aboutItem.click();
 
       const callArgs = (dialog.showMessageBox as any).mock.calls[0][0];
-      expect(callArgs.message).toContain('LobeChat');
+      expect(callArgs.message).toContain('heichat');
       expect(callArgs.message).toContain('1.0.0');
     });
   });

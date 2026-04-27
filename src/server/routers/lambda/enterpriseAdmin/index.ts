@@ -4,7 +4,7 @@
  * 认证层:三重闸门
  *   1. `authedProcedure`  —— 必须已登录
  *   2. `serverDatabase`   —— 拿到 db 用于读 Casdoor token
- *   3. `requireEnterpriseAdmin` —— LobeChat 侧先看是不是 cloud_admin(从 Casdoor JWT
+ *   3. `requireEnterpriseAdmin` —— heichat 侧先看是不是 cloud_admin(从 Casdoor JWT
  *      roles claim 解出),避免无谓的网络调用
  *
  * chat-gw 侧仍会二次校验 `cloud_admin` 角色(非 admin 返 403),我们翻成 FORBIDDEN。

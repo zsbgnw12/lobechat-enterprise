@@ -84,7 +84,7 @@ export class LobeReplicateAI implements LobeRuntimeAI {
   }
 
   /**
-   * Image generation support for LobeChat async image generation (FLUX, Stable Diffusion, etc.)
+   * Image generation support for heichat async image generation (FLUX, Stable Diffusion, etc.)
    */
   async createImage(payload: CreateImagePayload) {
     try {
@@ -197,7 +197,7 @@ export class LobeReplicateAI implements LobeRuntimeAI {
         this.debugLog('[Replicate createImage] No imageUrl provided');
       }
 
-      // Map LobeChat params to Replicate params
+      // Map heichat params to Replicate params
       if (width && height) {
         input.width = width;
         input.height = height;

@@ -50,7 +50,7 @@ describe('GithubCopilotOAuthService', () => {
           headers: {
             'Accept': 'application/json',
             'Authorization': 'token oauth-token-123',
-            'User-Agent': 'LobeChat/1.0',
+            'User-Agent': 'heichat/1.0',
           },
           method: 'GET',
         }),

@@ -1,4 +1,4 @@
-// [enterprise-fork] 加载动画保留 LobeHub 的波纹效果,把文字从 LobeHub 改为 heihub。
+// [enterprise-fork] 加载动画保留 heihub 的波纹效果,把文字从 heihub 改为 heihub。
 import { BrandLoading } from '@lobehub/ui/brand';
 import type { FC } from 'react';
 

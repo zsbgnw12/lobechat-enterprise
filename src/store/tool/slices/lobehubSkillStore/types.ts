@@ -1,5 +1,5 @@
 /**
- * LobeHub Skill Server connection status
+ * heihub Skill Server connection status
  */
 export enum LobehubSkillStatus {
   /** Connected and ready to use */
@@ -13,7 +13,7 @@ export enum LobehubSkillStatus {
 }
 
 /**
- * LobeHub Skill Tool definition (from Market API)
+ * heihub Skill Tool definition (from Market API)
  */
 export interface LobehubSkillTool {
   /** Tool description */
@@ -30,7 +30,7 @@ export interface LobehubSkillTool {
 }
 
 /**
- * LobeHub Skill Provider definition (from Market API)
+ * heihub Skill Provider definition (from Market API)
  */
 export interface LobehubSkillProvider {
   /** Provider icon URL */
@@ -46,7 +46,7 @@ export interface LobehubSkillProvider {
 }
 
 /**
- * LobeHub Skill Server instance (user-connected provider)
+ * heihub Skill Server instance (user-connected provider)
  */
 export interface LobehubSkillServer {
   /** Cache timestamp */
@@ -74,7 +74,7 @@ export interface LobehubSkillServer {
 }
 
 /**
- * Parameters for calling LobeHub Skill tool
+ * Parameters for calling heihub Skill tool
  */
 export interface CallLobehubSkillToolParams {
   /** Tool arguments */
@@ -88,7 +88,7 @@ export interface CallLobehubSkillToolParams {
 }
 
 /**
- * Result of calling LobeHub Skill tool
+ * Result of calling heihub Skill tool
  */
 export interface CallLobehubSkillToolResult {
   /** Return data */

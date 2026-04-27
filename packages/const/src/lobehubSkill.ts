@@ -37,7 +37,7 @@ export interface LobehubSkillProviderType {
 }
 
 /**
- * Predefined LobeHub Skill Provider list
+ * Predefined heihub Skill Provider list
  *
  * Note:
  * - This list is used for UI display (icons, labels)

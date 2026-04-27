@@ -237,7 +237,7 @@ export interface ValidationResult {
 export interface PlatformDocumentation {
   /** URL to the platform's developer portal / open platform console */
   portalUrl?: string;
-  /** URL to the usage documentation (e.g. LobeHub docs for this platform) */
+  /** URL to the usage documentation (e.g. heihub docs for this platform) */
   setupGuideUrl?: string;
 }
 

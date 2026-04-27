@@ -217,7 +217,7 @@ export async function setGrant(
   return r;
 }
 
-// ─── Tool-customer grants (v0.2.0, LobeChat customer scenario) ─────
+// ─── Tool-customer grants (v0.2.0, heichat customer scenario) ─────
 
 export interface ToolCustomerGrant {
   customer_code: string;

@@ -123,7 +123,7 @@ export class MarketService {
   // ============================== Feedback Methods ==============================
 
   /**
-   * Submit feedback to LobeHub
+   * Submit feedback to heihub
    */
   async submitFeedback(params: {
     clientInfo?: {
@@ -391,7 +391,7 @@ export class MarketService {
   // ============================== Skills Methods (using SDK) ==============================
 
   /**
-   * Search for skills in the LobeHub Market
+   * Search for skills in the heihub Market
    */
   async searchSkill(params: {
     category?: string;
@@ -458,7 +458,7 @@ export class MarketService {
   }
 
   /**
-   * Execute a LobeHub Skill tool
+   * Execute a heihub Skill tool
    * @param params - The skill execution parameters (provider, toolName, args)
    * @returns Execution result with content and success status
    */
@@ -504,7 +504,7 @@ export class MarketService {
   }
 
   /**
-   * Fetch LobeHub Skills manifests from Market API
+   * Fetch heihub Skills manifests from Market API
    * Gets user's connected skills and builds tool manifests for agent execution
    *
    * @returns Array of tool manifests for connected skills
@@ -559,7 +559,7 @@ export class MarketService {
             identifier: providerId,
             meta: {
               avatar: icon || '🔗',
-              description: `LobeHub Skill: ${providerLabel}`,
+              description: `heihub Skill: ${providerLabel}`,
               tags: ['lobehub-skill', providerId],
               title: providerLabel,
             },

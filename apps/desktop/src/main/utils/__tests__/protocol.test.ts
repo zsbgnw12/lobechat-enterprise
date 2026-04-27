@@ -10,7 +10,7 @@ describe('Protocol', () => {
         identifier: 'edgeone-mcp',
         name: 'EdgeOne MCP',
         author: 'Higress Team',
-        description: 'EdgeOne API integration for LobeChat',
+        description: 'EdgeOne API integration for heichat',
         version: '1.0.0',
         homepage: 'https://github.com/higress/edgeone-mcp',
         config: {
