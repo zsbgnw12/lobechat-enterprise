@@ -174,6 +174,11 @@ class UploadService {
 
     xhr.open('PUT', preSignUrl);
     xhr.setRequestHeader('Content-Type', file.type);
+    // [enterprise-fork] Azure Blob requires this header on PUT to a block blob SAS URL.
+    // Detect by the Azure host suffix; harmless for S3 (presigned v4 URLs sign only `host`).
+    if (/\.blob\.core\.windows\.net/i.test(preSignUrl)) {
+      xhr.setRequestHeader('x-ms-blob-type', 'BlockBlob');
+    }
     const data = await file.arrayBuffer();
 
     await new Promise((resolve, reject) => {

@@ -30,6 +30,9 @@ export const getFileConfig = () => {
       NEXT_PUBLIC_S3_DOMAIN: process.env.NEXT_PUBLIC_S3_DOMAIN,
       NEXT_PUBLIC_S3_FILE_PATH: process.env.NEXT_PUBLIC_S3_FILE_PATH || DEFAULT_S3_FILE_PATH,
 
+      // [enterprise-fork] Azure Blob storage (used when AZURE_STORAGE_CONNECTION_STRING is set)
+      AZURE_STORAGE_CONNECTION_STRING: process.env.AZURE_STORAGE_CONNECTION_STRING,
+      AZURE_STORAGE_CONTAINER: process.env.AZURE_STORAGE_CONTAINER || 'lobechat',
       S3_ACCESS_KEY_ID: process.env.S3_ACCESS_KEY_ID,
       S3_BUCKET: process.env.S3_BUCKET,
       S3_ENABLE_PATH_STYLE: process.env.S3_ENABLE_PATH_STYLE === '1',
@@ -47,6 +50,10 @@ export const getFileConfig = () => {
       CHUNKS_AUTO_GEN_METADATA: z.boolean(),
       EMBEDDING_BATCH_SIZE: z.coerce.number().int().positive().default(50),
       EMBEDDING_CONCURRENCY: z.coerce.number().int().positive().default(10),
+
+      // Azure Blob (alternative to S3)
+      AZURE_STORAGE_CONNECTION_STRING: z.string().optional(),
+      AZURE_STORAGE_CONTAINER: z.string(),
 
       // S3
       S3_ACCESS_KEY_ID: z.string().optional(),
