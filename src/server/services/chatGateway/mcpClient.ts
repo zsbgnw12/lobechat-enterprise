@@ -118,6 +118,10 @@ export interface ReadyzResponse {
 
 export async function fetchReadyz(): Promise<ReadyzResponse> {
   const resp = await fetch(`${baseUrl()}/readyz`, { method: 'GET' });
-  if (!resp.ok) throw new Error(`readyz http ${resp.status}`);
+  // chat-gw /readyz 的契约: 200=ready / 503=not_ready,两种情况都返回同一份
+  // ReadyzResponse JSON。其它状态码才是真正的网络/网关层错误。
+  if (resp.status !== 200 && resp.status !== 503) {
+    throw new Error(`readyz http ${resp.status}`);
+  }
   return (await resp.json()) as ReadyzResponse;
 }
