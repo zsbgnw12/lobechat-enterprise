@@ -183,7 +183,12 @@ export async function deleteAdminTool(token: string, name: string, hard = false)
 
 // ─── Tool-role grants ───────────────────────────────────────────────
 
-export type CloudRole = 'cloud_admin' | 'cloud_ops' | 'cloud_finance' | 'cloud_viewer';
+export type CloudRole =
+  | 'cloud_admin'
+  | 'cloud_ops'
+  | 'cloud_finance'
+  | 'cloud_viewer'
+  | 'cloud_sales';
 
 export interface ToolRoleGrant {
   role: CloudRole;

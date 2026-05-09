@@ -65,7 +65,7 @@ function wrapAdminError(e: unknown): never {
 
 const DispatcherEnum = z.enum(['http_adapter', 'mcp_proxy', 'daytona_sandbox']);
 const AuthModeEnum = z.enum(['service_key', 'user_passthrough']);
-const RoleEnum = z.enum(['cloud_admin', 'cloud_ops', 'cloud_finance', 'cloud_viewer']);
+const RoleEnum = z.enum(['cloud_admin', 'cloud_ops', 'cloud_finance', 'cloud_viewer', 'cloud_sales']);
 const OutcomeEnum = z.enum(['ok', 'allowed', 'denied', 'error']);
 
 const UpsertToolInput = z.object({

@@ -10,13 +10,20 @@ import PageBody from '../../components/PageBody';
 import TableToolbar from '../../components/TableToolbar';
 import { invalidate, useAdminTools, useGrants } from '../../hooks/useAdminData';
 
-const ROLES = ['cloud_admin', 'cloud_ops', 'cloud_finance', 'cloud_viewer'] as const;
+const ROLES = [
+  'cloud_admin',
+  'cloud_ops',
+  'cloud_sales',
+  'cloud_finance',
+  'cloud_viewer',
+] as const;
 type Role = (typeof ROLES)[number];
 
 const ROLE_LABELS: Record<Role, string> = {
   cloud_admin: 'A · admin',
   cloud_finance: 'F · finance',
   cloud_ops: 'O · ops',
+  cloud_sales: 'S · sales',
   cloud_viewer: 'V · viewer',
 };
 
@@ -164,6 +171,7 @@ const GrantsPage = memo(() => {
       cloud_admin: 0,
       cloud_finance: 0,
       cloud_ops: 0,
+      cloud_sales: 0,
       cloud_viewer: 0,
     };
     for (const g of grants ?? []) if (ROLES.includes(g.role as Role)) c[g.role as Role]++;
@@ -219,7 +227,7 @@ const GrantsPage = memo(() => {
   return (
     <Flexbox style={{ height: '100%' }}>
       <PageHeader
-        description="4 角色 × 工具 授权矩阵。可按分类展开单个工具,或直接勾分类表头批量授权。对应 chat-gw `/admin/tool-role-grants`。"
+        description="5 角色 × 工具 授权矩阵。可按分类展开单个工具,或直接勾分类表头批量授权。对应 chat-gw `/admin/tool-role-grants`。"
         title="角色授权"
       />
       <PageBody>
@@ -265,6 +273,7 @@ const GrantsPage = memo(() => {
             { dataIndex: 'display_name', key: 'display_name', title: '显示名' },
             roleColumn('cloud_admin'),
             roleColumn('cloud_ops'),
+            roleColumn('cloud_sales'),
             roleColumn('cloud_finance'),
             roleColumn('cloud_viewer'),
           ]}
