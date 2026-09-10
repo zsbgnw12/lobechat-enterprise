@@ -1,0 +1,126 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches-ignore: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  NODE_VERSION: "20"
+
+jobs:
+  install:
+    name: Install dependencies (cache)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          run_install: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          # no pnpm-lock.yaml in repo (gitignored) — skipping cache
+      - run: pnpm install --no-frozen-lockfile
+
+  lint-ts:
+    name: ESLint
+    needs: install
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          run_install: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          # no pnpm-lock.yaml in repo (gitignored) — skipping cache
+      - run: pnpm install --no-frozen-lockfile
+      - run: pnpm run lint:ts
+
+  lint-style:
+    name: Stylelint (check-only)
+    needs: install
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          run_install: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          # no pnpm-lock.yaml in repo (gitignored) — skipping cache
+      - run: pnpm install --no-frozen-lockfile
+      # Root script uses --fix which mutates files; in CI we want check-only.
+      - run: pnpm exec stylelint "{src,tests}/**/*.{js,jsx,ts,tsx}"
+
+  type-check:
+    name: TypeScript
+    needs: install
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          run_install: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          # no pnpm-lock.yaml in repo (gitignored) — skipping cache
+      - run: pnpm install --no-frozen-lockfile
+      - run: pnpm run type-check
+
+  # Note: a full `pnpm run test-app` (vitest across the whole workspace) is intentionally
+  # NOT run here. The repo-local CLAUDE.md forbids it (~10 min runtime, requires DB/Redis
+  # fixtures). If per-package tests are wanted in CI later, scope them explicitly
+  # (e.g. `bunx vitest run packages/database/...`).
+
+  brand-guard:
+    name: i18n brand protection
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Verify "Enterprise AI Workspace" replacement is intact
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ ! -d locales ]; then
+            echo "::error::locales/ directory missing"
+            exit 1
+          fi
+
+          count=$(grep -rl "Enterprise AI Workspace" locales --include="*.json" 2>/dev/null | wc -l)
+          threshold=100
+
+          echo "Files containing 'Enterprise AI Workspace': $count (threshold: $threshold)"
+
+          if [ "$count" -lt "$threshold" ]; then
+            echo "::error::i18n brand protection regressed: only $count files contain 'Enterprise AI Workspace' (expected >= $threshold). This usually means an upstream merge overwrote the de-brand. See CLAUDE.md."
+            exit 1
+          fi
+
+      - name: Check for leaked upstream brand in locale values
+        shell: bash
+        run: |
+          set -euo pipefail
+          # Allow brand strings inside JSON keys (unchanged upstream keys),
+          # but flag any that appear on the VALUE side of a JSON pair.
+          leaks=$(grep -rEn '"[^"]*"\s*:\s*"[^"]*(LobeHub|LobeChat)[^"]*"' locales --include="*.json" || true)
+          if [ -n "$leaks" ]; then
+            echo "::error::Found upstream brand strings (LobeHub/LobeChat) in locale VALUES. De-brand rule: values must say 'Enterprise AI Workspace'. Offending lines:"
+            echo "$leaks" | head -50
+            exit 1
+          fi
+          echo "No upstream brand leaks in locale values."
