@@ -141,6 +141,9 @@ pnpm-lock.yaml
 .turbo
 spaHtmlTemplates.ts
 
+# AI agent scratch state (never belongs in the repo)
+.omc/
+
 # Embedded CLI bundle (built at pack time)
 apps/desktop/resources/bin/lobe-cli.js
 apps/desktop/resources/cli-package.json
