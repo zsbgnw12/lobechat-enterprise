@@ -4,8 +4,19 @@ import { agentSkills } from '@lobechat/database/schemas';
 import { getTestDB } from '@lobechat/database/test-utils';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { getEnterpriseRole, resolveEnterpriseSkillOwnerId } from '@/server/services/enterpriseRole';
+
 import { agentSkillsRouter } from '../../agentSkills';
 import { cleanupTestUser, createTestContext, createTestUser } from './setup';
+
+vi.mock('@/server/services/enterpriseRole', async (importOriginal) => {
+  const actual = (await importOriginal()) as Record<string, unknown>;
+  return {
+    ...actual,
+    getEnterpriseRole: vi.fn(),
+    resolveEnterpriseSkillOwnerId: vi.fn(),
+  };
+});
 
 // Mock getServerDB to return our test database instance
 let testDB: LobeChatDatabase;
@@ -70,13 +81,6 @@ vi.mock('@/server/services/skill/parser', () => ({
   SkillParser: vi.fn().mockImplementation(() => mockParserInstance),
 }));
 
-const mockMarketServiceInstance = {
-  getSkillDownloadUrl: vi.fn(),
-};
-vi.mock('@/server/services/market', () => ({
-  MarketService: vi.fn().mockImplementation(() => mockMarketServiceInstance),
-}));
-
 // Mock global fetch for URL imports
 const mockFetch = vi.fn();
 vi.stubGlobal('fetch', mockFetch);
@@ -89,6 +93,13 @@ describe('Skill Router Integration Tests', () => {
     serverDB = await getTestDB();
     testDB = serverDB;
     userId = await createTestUser(serverDB);
+
+    vi.mocked(getEnterpriseRole).mockResolvedValue({
+      isAdmin: true,
+      roles: ['cloud_admin'],
+      username: 'admin',
+    });
+    vi.mocked(resolveEnterpriseSkillOwnerId).mockImplementation(async (_db, uid) => uid);
   });
 
   afterEach(async () => {
@@ -511,7 +522,7 @@ describe('Skill Router Integration Tests', () => {
       expect(result).toBeDefined();
       expect(result!.skill.name).toBe('skill-creator');
       expect(result!.skill.identifier).toBe('openclaw-openclaw-skill-creator');
-      expect(result!.skill.source).toBe('market');
+      expect(result!.skill.source).toBe('user');
       expect(result!.skill.manifest).toMatchObject({
         repository: 'https://github.com/openclaw/openclaw',
         sourceUrl: 'https://github.com/openclaw/openclaw/tree/main/skills/skill-creator',
@@ -605,7 +616,7 @@ description: A skill from URL
       expect(result!.status).toBe('created');
       expect(result!.skill.name).toBe('URL Skill');
       expect(result!.skill.identifier).toBe('url.example.com.skill');
-      expect(result!.skill.source).toBe('market');
+      expect(result!.skill.source).toBe('user');
       expect(result!.skill.manifest).toMatchObject({
         sourceUrl: 'https://example.com/skill.md',
       });
@@ -651,54 +662,12 @@ description: A skill from URL
   });
 
   describe('importFromMarket', () => {
-    beforeEach(() => {
-      mockFetch.mockReset();
-      mockMarketServiceInstance.getSkillDownloadUrl.mockReset();
-    });
-
-    it('should keep the market identifier stable when re-importing from market', async () => {
-      mockMarketServiceInstance.getSkillDownloadUrl
-        .mockReturnValueOnce('https://market.lobehub.com/api/v1/skills/github.owner.repo/download')
-        .mockReturnValueOnce(
-          'https://market.lobehub.com/api/v1/skills/github.owner.repo/download?version=1.0.0',
-        );
-
-      mockFetch.mockResolvedValue({
-        arrayBuffer: async () => new ArrayBuffer(8),
-        headers: {
-          get: (key: string) => (key === 'content-type' ? 'application/zip' : null),
-        },
-        ok: true,
-        status: 200,
-        statusText: 'OK',
-      });
-
-      let callCount = 0;
-      mockParserInstance.parseZipPackage.mockImplementation(() => {
-        callCount++;
-        return {
-          content: callCount === 1 ? '# Original' : '# Updated',
-          manifest: {
-            description: callCount === 1 ? 'Original desc' : 'Updated desc',
-            name: callCount === 1 ? 'Original Name' : 'Updated Name',
-          },
-          resources: new Map(),
-          zipHash: undefined,
-        };
-      });
-
+    it('should reject public market imports', async () => {
       const caller = agentSkillsRouter.createCaller(createTestContext(userId));
 
-      const first = await caller.importFromMarket({ identifier: 'github.owner.repo' });
-      expect(first!.status).toBe('created');
-      expect(first!.skill.identifier).toBe('github.owner.repo');
-
-      const second = await caller.importFromMarket({ identifier: 'github.owner.repo' });
-      expect(second!.status).toBe('updated');
-      expect(second!.skill.id).toBe(first!.skill.id);
-      expect(second!.skill.identifier).toBe('github.owner.repo');
-      expect(second!.skill.name).toBe('Updated Name');
-      expect(second!.skill.content).toBe('# Updated');
+      await expect(
+        caller.importFromMarket({ identifier: 'github.owner.repo' }),
+      ).rejects.toMatchObject({ code: 'FORBIDDEN' });
     });
   });
 
@@ -766,6 +735,59 @@ description: A skill from URL
       expect(stillExists).toBeDefined();
 
       await cleanupTestUser(serverDB, otherUserId);
+    });
+  });
+
+  describe('enterprise catalog', () => {
+    it('should share skills with every user when they resolve to the same owner', async () => {
+      vi.mocked(resolveEnterpriseSkillOwnerId).mockResolvedValue(userId);
+
+      const caller1 = agentSkillsRouter.createCaller(createTestContext(userId));
+      await caller1.create({
+        name: 'Org Skill',
+        content: '# Shared',
+        description: 'Shared with the org',
+      });
+
+      const otherUserId = await createTestUser(serverDB);
+      const caller2 = agentSkillsRouter.createCaller(createTestContext(otherUserId));
+      const listed = await caller2.list();
+
+      expect(listed.data.some((skill) => skill.name === 'Org Skill')).toBe(true);
+
+      await cleanupTestUser(serverDB, otherUserId);
+    });
+
+    it('should forbid non-admins from creating skills', async () => {
+      vi.mocked(getEnterpriseRole).mockResolvedValue({
+        isAdmin: false,
+        roles: ['cloud_viewer'],
+        username: 'viewer',
+      });
+
+      const caller = agentSkillsRouter.createCaller(createTestContext(userId));
+
+      await expect(
+        caller.create({
+          name: 'Blocked',
+          content: '# No',
+          description: 'Should not be created',
+        }),
+      ).rejects.toMatchObject({ code: 'FORBIDDEN' });
+    });
+
+    it('should forbid non-admins from importing GitHub skills', async () => {
+      vi.mocked(getEnterpriseRole).mockResolvedValue({
+        isAdmin: false,
+        roles: ['cloud_viewer'],
+        username: 'viewer',
+      });
+
+      const caller = agentSkillsRouter.createCaller(createTestContext(userId));
+
+      await expect(
+        caller.importFromGitHub({ gitUrl: 'https://github.com/org/repo' }),
+      ).rejects.toMatchObject({ code: 'FORBIDDEN' });
     });
   });
 });

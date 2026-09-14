@@ -1,148 +1,128 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+本文件为 Claude Code (claude.ai/code) 在本仓库工作时提供指引。
 
-## What this repo actually is
+## 这个仓库是什么
 
-This is **not** a plain LobeChat checkout. It is the **Enterprise AI Workspace** prototype:
-
-- **Upstream LobeChat source** (de-branded) as the chat UI — see `README.lobechat.md` for the original upstream README.
-- **`gateway/`** — a self-built **Enterprise Gateway** (Fastify + Prisma + Postgres + Redis + BullMQ). This is where permissions/identity/data-scope/field-masking/audit live. See `README.gateway.md`.
-- **`docker-compose.yml`** — orchestrates the whole stack (db, redis, gateway, lobechat).
-
-It is a **local-only prototype**: not deployed, not pushed to cloud. All secrets live in local `.env` (gitignored).
-
-`README.md` is the authoritative diff against upstream LobeChat (new files, modified files, branding replacements). Read it before making changes that might collide with upstream.
-
-## Architecture at a glance
-
-```
-Browser :3010 ── LobeChat (Next.js) ──tool-bridge──▶ Gateway :3001 (Fastify)
-                        │                                   │
-                        ▼                                   ▼
-                    Postgres (pgvector, pg16)         Redis (cache + BullMQ)
-                        │                                   │
-                    two logical DBs:                   8 upstream adapters:
-                    lobechat + enterprise_gateway     gongdan, xiaoshou, cloudcost,
-                                                      kb, ai_search (Serper),
-                                                      sandbox (Daytona), doc agent
-```
-
-Request flow through gateway (`gateway/src/core/gateway.ts` is the entry pipeline):
-1. **auth** — dev header `X-Dev-User` OR Casdoor JWKS Bearer OR M2M client_credentials
-2. **capabilities** — deny-wins RBAC from `enterprise_*` tables (cached in Redis, key `cap:v1:*`)
-3. **identity_map** — rewrite user → upstream identifier per tool
-4. **data_scope DSL** — whitelist + `$in` / `$contains` / `$regex` filters
-5. **tool adapter** — HTTP call to upstream (`gateway/src/tools/*`)
-6. **field_policies** — drop / mask / hash (supports wildcards)
-7. **audit** — BullMQ async, sync fallback; exposed at `/metrics`
-
-Gateway layout:
-- `gateway/src/routes/admin/*` — admin API + `ui.ts` (6-page HTML admin UI with CSRF, mounted at `/admin`)
-- `gateway/src/routes/lobechatPlugin.ts` — dynamic LobeChat plugin manifest + tool bridge
-- `gateway/src/routes/metrics.ts` — Prometheus `/metrics` (super_admin or `Bearer METRICS_TOKEN`)
-- `gateway/src/core/` — `gateway | filter | masking | audit | capabilities | cache | auditQueue | metrics | rateLimiter | scopeDsl`
-- `gateway/src/auth/` — `devAuth | casdoor | casdoorM2M | middleware`
-- `gateway/prisma/schema.prisma` — 9 enterprise tables; `seed.ts` provides the dev users below
-
-## Common commands
-
-### Full stack (Docker, the normal way to run this repo)
+**上游 LobeChat / LobeHub 2.1.50 的企业定制硬分叉**，产品名 **超级运营中心**。不是插件、不是 submodule —— 企业能力直接写在上游源码里，共 58 个文件带 `[enterprise-fork]` 注释标记，用这个标记可以枚举全部分叉面：
 
 ```bash
-cp .env.example .env                              # if missing
-docker compose build --build-arg USE_CN_MIRROR=true   # first build ~20 min
-docker compose up -d
-
-curl -sf http://localhost:3001/health             # gateway health
-curl -sI http://localhost:3010/                   # lobechat (200 or 307)
-bash gateway/scripts/acceptance.sh                # 43 automated checks
-bash gateway/scripts/pilot-all.sh                 # 8 real upstream pilots
+rg "\[enterprise-fork\]" --files-with-matches
 ```
 
-Admin UI: `http://localhost:3001/admin` (dev login with usernames below).
+上游原始 README 归档在 `enterprise/upstream-lobechat-readme.md`。
 
-### Dev users (seeded — dev mode passes `X-Dev-User: <name>`)
+**文档放置约定**：企业分叉的所有文档在 `enterprise/`，上游自己的文档留在 `docs/`，两边不混
+（`docs/**` 会被 `.i18nrc.js` / `.seorc.cjs` 的上游工具链扫到）。新增企业文档放 `enterprise/`，
+不要堆在仓库根。
 
-| user | role | tools visible |
-|---|---|---|
-| `sa` | super_admin | all |
-| `pa` | permission_admin | admin UI only |
-| `sales1` | internal_sales | xiaoshou×4 + kb + ai_search + doc |
-| `ops1` | internal_ops | gongdan×7 + cloudcost×3 + kb + ai_search + doc |
-| `tech1` | internal_tech | gongdan.{get_own_tickets,search_tickets,get_ticket,update_ticket} + kb + ai_search + sandbox |
-| `cust1` | customer | kb + ai_search + sandbox + doc + gongdan.{create_ticket,get_own_tickets} |
+> **重要历史**：本仓曾经有过一个本地 `gateway/` 目录（Fastify + Prisma + 自建 `enterprise_*` 表）。它在 commit `dce4ccd` 被**整个删除**，职责搬到了远程的 chat-gw 服务。任何提到 `gateway/`、`acceptance.sh`、`pilot-*.sh`、`enterprise_gateway` 数据库、`X-Dev-User` 开发头、`/admin` HTML 后台的说法都是**过期信息**。
 
-### Gateway (inside `gateway/`)
+## 架构
+
+```
+浏览器 ──▶ 超级运营中心 (Next.js/LobeChat, Azure Container Apps :3210)
+              │
+              ├─ Casdoor OIDC 登录 → Better Auth accounts 表存 access_token
+              │
+              ├─ tRPC chatGateway.callTool ──▶ chat-gw  POST /mcp
+              │     (JSON-RPC, Bearer = Casdoor token)   工具注册/授权/审计/上游适配全在对端
+              │
+              ├─ tRPC enterpriseAdmin.*    ──▶ chat-gw  /admin/*   (cloud_admin only)
+              │
+              └─ 客户编号登录 ─────────────▶ gongdan  /api/auth/customer-login
+                                              (HS256 JWT, role=CUSTOMER)
+            Postgres (pgvector pg16) —— 只有 lobechat 一个库
+```
+
+权限模型完全在 Casdoor 侧：JWT 的 `roles` claim 决定角色，本仓不维护映射表。角色为
+`cloud_admin` / `cloud_ops` / `cloud_finance` / `cloud_viewer` / `cloud_sales`。
+
+## 企业代码地图
+
+| 路径                                                        | 作用                                                         |
+| ----------------------------------------------------------- | ------------------------------------------------------------ |
+| `src/server/services/chatGateway/mcpClient.ts`              | chat-gw MCP JSON-RPC 薄客户端                                |
+| `src/server/services/chatGateway/invokeTool.ts`             | `chatgw-` 前缀工具 → chat-gw `tools/call`                    |
+| `src/server/services/chatGateway/adminClient.ts`            | chat-gw `/admin/*` 客户端                                    |
+| `src/server/services/chatGateway/tokenStore.ts`             | 从 Better Auth accounts 取 Casdoor token，自动 refresh       |
+| `src/server/services/enterpriseRole/index.ts`               | Casdoor JWT → 角色解析（5 分钟内存缓存）+ 管理员 vault owner |
+| `src/server/services/gongdan/customerAuth.ts`               | 客户编号登录 /refresh                                        |
+| `src/server/routers/lambda/chatGateway/`                    | 工具调用 tRPC router                                         |
+| `src/server/routers/lambda/enterpriseAdmin/`                | 管理后台 tRPC router                                         |
+| `src/libs/trpc/lambda/middleware/requireEnterpriseAdmin.ts` | provider/model 配置类 mutation 的硬门控                      |
+| `src/features/EnterpriseAdmin/`                             | 管理后台 8 页 UI                                             |
+| `src/app/(backend)/api/auth/customer-login/route.ts`        | 客户登录 route                                               |
+| `src/server/modules/fileStorage.ts`                         | S3 / Azure Blob 存储选择                                     |
+
+管理后台挂在 `/settings/enterprise-admin/*`。**SPA 路由必须同时注册在**
+`src/spa/router/desktopRouter.config.tsx` **和** `desktopRouter.config.desktop.tsx`，
+漏一个会白屏。
+
+## 常用命令
 
 ```bash
-cd gateway
-bun install                     # or npm/pnpm
-bun run dev                     # ts-node src/server.ts (listens :3001)
-bun run build && bun run start  # compile + node dist/server.js
-bun run prisma:generate
-bun run prisma:push             # schema → db (accept-data-loss)
-bun run seed                    # seed enterprise_gateway DB
+pnpm install         # 冷装约 25 分钟，见下方「依赖陷阱」
+pnpm run type-check  # tsgo --noEmit
+pnpm run lint:ts     # eslint
+pnpm run build:spa   # vite build，Docker 构建的第一步，最容易挂在这
+docker compose up -d # 本地全栈（db + lobechat）
+
+bunx vitest run --silent='passed-only' '[file]' # 单文件测试
 ```
 
-### LobeChat (upstream) dev
+**不要跑 `bun run test` / `pnpm run test-app`** —— 全量约 10 分钟，且需要 DB/Redis fixture。
 
-Standard upstream scripts still work (`bun run dev:spa`, `bun run dev`, `bunx vitest run ...`). See the legacy guidance section below. In practice **this repo runs LobeChat through docker-compose** — you usually don't start it standalone.
+## 依赖陷阱（动手前必读）
 
-### Troubleshooting
+本仓继承了上游为高频迭代设计的依赖策略，但源码冻结在 2.1.50，两者冲突：
 
-```bash
-docker compose ps -a
-docker logs lobechat-gateway-1 --tail 50
-docker logs lobechat-lobechat-1 --tail 50
-docker exec lobechat-db-1 psql -U eg -d enterprise_gateway -c "\dt enterprise_*"
-docker exec lobechat-redis-1 redis-cli keys 'cap:v1:*'
-bash gateway/scripts/acceptance.sh | grep FAIL
-```
+- `.npmrc: lockfile=false` —— **pnpm 根本不生成 lockfile**，仓库里没有也装不出 `pnpm-lock.yaml`。
+- `.npmrc: resolution-mode=highest` —— 每个 range 一律解析到**已发布最高版**。
+- root `package.json` 365 个依赖里 **273 个是 caret 范围**。
 
-`docker compose down` keeps volumes; `docker compose down -v` wipes `pgdata` (usually don't).
+合起来的后果：**每次构建都是「用旧源码配当天最新依赖」**，构建结果不可复现，会周期性地凭空炸掉。
 
-## Things that trip people up
+还有一个静默陷阱：**`pnpm-workspace.yaml` 里的 `overrides:` 块不生效**。两处 overrides 并存时
+pnpm 只认 `package.json` 的 `pnpm.overrides`。要固定某个版本，**写进 `package.json#pnpm.overrides`**，
+写在 `pnpm-workspace.yaml` 里会被静默忽略（实测 `react: 19.2.4` 被忽略，实装 19.3.0）。
 
-- **Two logical DBs in one Postgres**: `enterprise_gateway` and `lobechat`. Created by `db-init/01-create-dbs.sql` on first container start. If you `docker compose down -v`, re-seed the gateway after reboot (`bun run seed` inside gateway container).
-- **`pg_search` / BM25 is disabled**. Migrations `packages/database/migrations/0090_enable_pg_search.sql` and `0093_add_bm25_indexes_with_icu.sql` are intentionally empty — the `pgvector/pgvector:pg16` image doesn't ship `pg_search.control`. Don't re-enable them without swapping to a paradedb image + data migration.
-- **Don't re-brand upstream files casually**: `README.md` lists the 242 locale files / 760 replacements plus branding constants. i18n **keys were not renamed**, only values — check there before grepping for "LobeHub".
-- **Secrets**: `.env*` are gitignored. Generate prod secrets with `openssl rand -base64 32` for `KEY_VAULTS_SECRET`, `AUTH_SECRET`, `TOKEN_ENCRYPTION_KEY`, `ADMIN_CSRF_SECRET`, `METRICS_TOKEN`. See `docs/PRODUCTION-SECRETS.md`.
-- **Casdoor** requires the user to create the Application manually (`docs/CASDOOR-SETUP.md`) for end-to-end SSO; dev header auth works without it.
+## CI / 部署
 
-## External upstream / integration docs
+- `.github/workflows/deploy-aca.yml` —— push main 触发：GitHub runner 构建镜像 → 推 ACR → 更新 Azure Container Apps。镜像在 runner 上构建（ACR 自带 agent 内存不够）。
+- `.github/workflows/ci.yml` —— 触发条件是 `pull_request: [main]` + `push: branches-ignore: [main]`。**直推 main 不会触发 CI**。
+- main **没有分支保护**，没有必需检查。
 
-- `AI-BRAIN-API.md`, `EXTERNAL_SERVICES.md`, `SUPER_OPS_API.md`, `工单接口.md` — four upstream-system specs provided by the user. Consult these before touching any `gateway/src/tools/*` adapter.
-- `docs/DELIVERY.md` — delivery checklist + test report.
-- `.omc/plans/autopilot-impl.md`, `.omc/autopilot/spec.md` — original implementation plan.
+`next build` 和 vite 都用 esbuild 剥类型、**不做类型检查**。所以 TS 错误拦不住构建，
+只会在运行时炸。改完务必自己跑 `pnpm run type-check`。
+
+## 安全红线
+
+- `.env` / `.env.*` 禁止读取、输出、提交。生产密钥走 ACA secretref，见 `enterprise/operations/secrets.md`。
+- 不要直推 main、不要 force push。
+- 不要把 TODO /mock/placeholder 说成生产完成。
+
+## 上游对接文档
+
+业务方提供的上游系统接口规格在 `enterprise/integrations/`：
+`ai-brain-api.md`、`super-ops-api.md`、`gongdan-api.md`。
+改任何与 gongdan / 上游工具相关的代码前先查对应那份。
 
 ---
 
-## Upstream LobeChat conventions (still apply when editing LobeChat code)
+## 上游 LobeChat 约定（改上游代码时仍然适用）
 
-Tech stack: Next.js 16 + React 19 + TS · SPA via `react-router-dom` · `@lobehub/ui` + antd · antd-style (prefer `createStaticStyles` with `cssVar.*`, fall back to `createStyles` + `token` only when runtime needed — see `.cursor/docs/createStaticStyles_migration_guide.md`) · react-i18next · zustand · SWR · tRPC · Drizzle ORM · Vitest.
+技术栈：Next.js 16 + React 19 + TS・`react-router-dom` SPA · `@lobehub/ui` + antd・
+antd-style（优先 `createStaticStyles` + `cssVar.*`）· react-i18next · zustand · SWR ·
+tRPC · Drizzle ORM · Vitest。
 
-LobeChat layout:
-- `apps/desktop/` — Electron app
-- `packages/` — shared `@lobechat/*` (database, agent-runtime, ...)
-- `src/app/` — Next.js App Router (backend API, auth pages)
-- `src/routes/` — **thin** SPA page segments; only import from `@/features/*`
-- `src/features/` — domain UI + hooks
-- `src/spa/` — SPA entries (`entry.web.tsx`, `entry.mobile.tsx`, `entry.desktop.tsx`) + `router/`
-- `src/store/`, `src/services/`, `src/server/`, `e2e/`
+目录：`apps/desktop/` Electron · `packages/` 共享 `@lobechat/*` · `src/app/` Next.js App Router ·
+`src/routes/` **薄**路由段（只从 `@/features/*` 引）・`src/features/` 领域 UI・`src/spa/` SPA 入口。
 
-When adding an SPA route, keep route files thin and put logic under `src/features/<Domain>/`. **Register desktop routes in both** `src/spa/router/desktopRouter.config.tsx` **and** `desktopRouter.config.desktop.tsx` — mismatch causes blank screens. See `.agents/skills/spa-routes/SKILL.md`.
+测试优先 `vi.spyOn` 而非 `vi.mock`。同一个问题修 2 次没成，停下来问。
 
-Testing:
-```bash
-bunx vitest run --silent='passed-only' '[file]'          # never run `bun run test` — ~10 min
-cd packages/database && bunx vitest run --silent='passed-only' '[file]'
-bun run type-check
-```
-Prefer `vi.spyOn` over `vi.mock`. After 2 failed fix attempts, stop and ask.
+i18n：只往 `src/locales/default/<namespace>.ts` 加 key；预览翻 `locales/zh-CN/` + `locales/en-US/`；
+**不要跑 `pnpm i18n`**（CI 负责）。注意 locale **value 已整体去品牌**为「超级运营中心」，
+i18n **key 名未改**，grep 品牌词前先看清楚。
 
-i18n: add keys to `src/locales/default/<namespace>.ts`; for preview translate `locales/zh-CN/` + `locales/en-US/`; don't run `pnpm i18n` (CI handles it).
-
-Git: `canary` = dev branch, `main` = release (cherry-picks from canary). Branch new work off `canary`, PR into `canary`. Rebase on pull. Gitmoji commit prefix. Branch name `<type>/<feature-name>`.
-
-Package tooling: `pnpm` for deps, `bun` for scripts, `bunx` for npm executables.
+包管理：`pnpm` 管依赖，`bun` 跑 script，`bunx` 跑可执行包。

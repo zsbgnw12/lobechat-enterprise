@@ -1,5 +1,5 @@
-BRANCH=$(git branch --show-current)
-if [ "$BRANCH" = "dev" ] || [ "$BRANCH" = "main" ]; then
-  npm run type-check
-fi
+# Full `pnpm run type-check` is CI / on-demand, not every commit.
+# It scans the whole repo (~2 min here) and currently fails on unrelated
+# dependency types; blocking local commits on it is not a useful gate.
+# CI already has a TypeScript job on PRs (`ci.yml`).
 npx --no-install lint-staged

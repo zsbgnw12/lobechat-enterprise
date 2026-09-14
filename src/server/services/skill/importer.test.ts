@@ -371,7 +371,7 @@ describe('SkillImporter', () => {
       expect(result.status).toBe('created');
       expect(result.skill.name).toBe('GitHub Skill');
       expect(result.skill.identifier).toBe('lobehub-skill-demo');
-      expect(result.skill.source).toBe('market');
+      expect(result.skill.source).toBe('user');
 
       // Verify manifest contains repository info
       const dbSkill = await db.query.agentSkills.findFirst({
@@ -842,7 +842,7 @@ This is the skill content.`,
       expect(result.status).toBe('created');
       expect(result.skill.name).toBe('URL Skill');
       expect(result.skill.identifier).toBe('url.example.com.skill');
-      expect(result.skill.source).toBe('market');
+      expect(result.skill.source).toBe('user');
       expect(result.skill.content).toBe('# URL Skill Content\n\nThis is the skill content.');
 
       // Verify manifest contains source URL

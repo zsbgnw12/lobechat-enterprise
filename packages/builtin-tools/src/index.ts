@@ -33,7 +33,7 @@ import { type LobeBuiltinTool } from '@lobechat/types';
 export const defaultToolIds = [
   LobeActivatorManifest.identifier,
   SkillsManifest.identifier,
-  SkillStoreManifest.identifier,
+  // [enterprise-fork] 不把 lobe-skill-store 塞进默认工具：安装走管理员 UI，避免对话 always-on 绕过门控
   WebBrowsingManifest.identifier,
   KnowledgeBaseManifest.identifier,
   MemoryManifest.identifier,
@@ -48,11 +48,7 @@ export const defaultToolIds = [
  * Tool IDs that are always enabled regardless of user selection.
  * These are core system tools that the agent needs to function properly.
  */
-export const alwaysOnToolIds = [
-  LobeActivatorManifest.identifier,
-  SkillsManifest.identifier,
-  SkillStoreManifest.identifier,
-];
+export const alwaysOnToolIds = [LobeActivatorManifest.identifier, SkillsManifest.identifier];
 
 /**
  * Tool IDs to exclude from defaults when in manual skill-activate mode.
@@ -103,6 +99,7 @@ export const builtinTools: LobeBuiltinTool[] = [
     type: 'builtin',
   },
   {
+    discoverable: false,
     hidden: true,
     identifier: SkillStoreManifest.identifier,
     manifest: SkillStoreManifest,

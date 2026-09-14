@@ -13,7 +13,8 @@ import Item from './Item';
 
 export const CustomList = memo(() => {
   const customPlugins = useToolStore(pluginSelectors.installedCustomPluginMetaList, isEqual);
-  const agentSkills = useToolStore(agentSkillsSelectors.getUserAgentSkills, isEqual);
+  // [enterprise-fork] 组织目录里 GitHub 旧记录可能仍是 source=market，Custom 页要全部列出
+  const agentSkills = useToolStore(agentSkillsSelectors.getAgentSkills, isEqual);
   const searchKeywords = useToolStore((s) => s.customPluginSearchKeywords || '');
   const useFetchAgentSkills = useToolStore((s) => s.useFetchAgentSkills);
   useFetchAgentSkills(true);

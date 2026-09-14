@@ -215,8 +215,19 @@ export async function resolveEnterpriseProviderOwnerId(
       adminIdCache.at = now;
       return user.id;
     }
+    log(
+      'enterprise owner email %s not found, falling back to caller %s',
+      adminEmail,
+      fallbackUserId,
+    );
   } catch (err) {
     log('resolveEnterpriseProviderOwnerId failed: %O', err);
   }
   return fallbackUserId;
 }
+
+/**
+ * [enterprise-fork] 组织技能目录与 provider vault 共用管理员 owner。
+ * 管理员安装的技能写入此人的 `agent_skills`，所有登录用户按此人来读。
+ */
+export const resolveEnterpriseSkillOwnerId = resolveEnterpriseProviderOwnerId;

@@ -13,6 +13,7 @@ import { marketSDK, requireMarketAuth } from '@/libs/trpc/lambda/middleware/mark
 import { isTrustedClientEnabled } from '@/libs/trusted-client';
 import { createFileStorageClient } from '@/server/modules/fileStorage';
 import { DiscoverService } from '@/server/services/discover';
+import { resolveEnterpriseSkillOwnerId } from '@/server/services/enterpriseRole';
 import { FileService } from '@/server/services/file';
 import { MarketService } from '@/server/services/market';
 import {
@@ -173,8 +174,9 @@ const execInSandboxHandler = async ({
 
     // For execScript tool, look up skill zipUrls from activatedSkills
     if (toolName === 'execScript' && enhancedParams.activatedSkills?.length) {
-      const agentSkillModel = new AgentSkillModel(ctx.serverDB, userId);
-      const fileModel = new FileModel(ctx.serverDB, userId);
+      const ownerId = await resolveEnterpriseSkillOwnerId(ctx.serverDB, userId);
+      const agentSkillModel = new AgentSkillModel(ctx.serverDB, ownerId);
+      const fileModel = new FileModel(ctx.serverDB, ownerId);
 
       // Resolve zipUrls for all activated skills
       const skillZipUrls: Record<string, string> = {};

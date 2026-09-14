@@ -9,6 +9,7 @@ import { SkillsExecutionRuntime } from '@lobechat/builtin-tool-skills/executionR
 
 import { AgentSkillModel } from '@/database/models/agentSkill';
 import { filterBuiltinSkills } from '@/helpers/skillFilters';
+import { resolveEnterpriseSkillOwnerId } from '@/server/services/enterpriseRole';
 
 import { type ServerRuntimeRegistration } from './types';
 
@@ -23,7 +24,8 @@ export const activatorRuntime: ServerRuntimeRegistration = {
     // Create SkillsExecutionRuntime for activateSkill delegation
     let skillsRuntime: SkillsExecutionRuntime | undefined;
     if (context.serverDB && context.userId) {
-      const skillModel = new AgentSkillModel(context.serverDB, context.userId);
+      const ownerId = await resolveEnterpriseSkillOwnerId(context.serverDB, context.userId);
+      const skillModel = new AgentSkillModel(context.serverDB, ownerId);
       skillsRuntime = new SkillsExecutionRuntime({
         builtinSkills: filterBuiltinSkills(builtinSkills),
         service: {

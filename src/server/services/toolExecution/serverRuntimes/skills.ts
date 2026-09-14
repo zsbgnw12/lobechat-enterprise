@@ -14,7 +14,8 @@ import { AgentSkillModel } from '@/database/models/agentSkill';
 import { FileModel } from '@/database/models/file';
 import { UserModel } from '@/database/models/user';
 import { filterBuiltinSkills } from '@/helpers/skillFilters';
-import { FileS3 } from '@/server/modules/S3';
+import { createFileStorageClient } from '@/server/modules/fileStorage';
+import { resolveEnterpriseSkillOwnerId } from '@/server/services/enterpriseRole';
 import { FileService } from '@/server/services/file';
 import { MarketService } from '@/server/services/market';
 import { SkillResourceService } from '@/server/services/skill/resource';
@@ -323,14 +324,15 @@ export const skillsRuntime: ServerRuntimeRegistration = {
       log('Failed to fetch market accessToken for user %s: %O', context.userId, error);
     }
 
-    const skillModel = new AgentSkillModel(context.serverDB, context.userId);
-    const resourceService = new SkillResourceService(context.serverDB, context.userId);
+    const ownerId = await resolveEnterpriseSkillOwnerId(context.serverDB, context.userId);
+    const skillModel = new AgentSkillModel(context.serverDB, ownerId);
+    const resourceService = new SkillResourceService(context.serverDB, ownerId);
     const marketService = new MarketService({
       accessToken: marketAccessToken,
       userInfo: { userId: context.userId },
     });
-    const fileService = new FileService(context.serverDB, context.userId);
-    const fileModel = new FileModel(context.serverDB, context.userId);
+    const fileService = new FileService(context.serverDB, ownerId);
+    const fileModel = new FileModel(context.serverDB, ownerId);
 
     const service = new SkillServerRuntimeService({
       fileModel,

@@ -1,31 +1,25 @@
 import { TRPCError } from '@trpc/server';
-import debug from 'debug';
 import { z } from 'zod';
 
 import { publicProcedure, router } from '@/libs/trpc/lambda';
-import { marketUserInfo, serverDatabase } from '@/libs/trpc/lambda/middleware';
-import { MarketService } from '@/server/services/market';
 import { SkillSorts } from '@/types/discover';
 
-const log = debug('lambda-router:market:skill');
+const PUBLIC_SKILL_MARKET_DISABLED =
+  'Public skill market is disabled. Import from GitHub, URL, or ZIP instead.';
 
-// Public procedure with optional user info for trusted client token
-const marketProcedure = publicProcedure
-  .use(serverDatabase)
-  .use(marketUserInfo)
-  .use(async ({ ctx, next }) => {
-    return next({
-      ctx: {
-        marketService: new MarketService({
-          accessToken: ctx.marketAccessToken,
-          userInfo: ctx.marketUserInfo,
-        }),
-      },
-    });
+const disabledSkillMarket = () => {
+  throw new TRPCError({
+    code: 'FORBIDDEN',
+    message: PUBLIC_SKILL_MARKET_DISABLED,
   });
+};
 
+/**
+ * [enterprise-fork] 公共技能市场查询全部关掉。社区 /community/skill 若仍被直链打开，
+ * 这里直接 FORBIDDEN，不再代理 market.lobehub.com。
+ */
 export const skillRouter = router({
-  getSkillCategories: marketProcedure
+  getSkillCategories: publicProcedure
     .input(
       z
         .object({
@@ -34,21 +28,9 @@ export const skillRouter = router({
         })
         .optional(),
     )
-    .query(async ({ input, ctx }) => {
-      log('getSkillCategories input: %O', input);
+    .query(async () => disabledSkillMarket()),
 
-      try {
-        return await ctx.marketService.getSkillCategories();
-      } catch (error) {
-        log('Error fetching skill categories: %O', error);
-        throw new TRPCError({
-          code: 'INTERNAL_SERVER_ERROR',
-          message: 'Failed to fetch skill categories',
-        });
-      }
-    }),
-
-  getSkillDetail: marketProcedure
+  getSkillDetail: publicProcedure
     .input(
       z.object({
         identifier: z.string(),
@@ -56,24 +38,9 @@ export const skillRouter = router({
         version: z.string().optional(),
       }),
     )
-    .query(async ({ input, ctx }) => {
-      log('getSkillDetail input: %O', input);
+    .query(async () => disabledSkillMarket()),
 
-      try {
-        return await ctx.marketService.getSkillDetail(input.identifier, {
-          locale: input.locale,
-          version: input.version,
-        });
-      } catch (error) {
-        log('Error fetching skill detail: %O', error);
-        throw new TRPCError({
-          code: 'INTERNAL_SERVER_ERROR',
-          message: 'Failed to fetch skill detail',
-        });
-      }
-    }),
-
-  getSkillList: marketProcedure
+  getSkillList: publicProcedure
     .input(
       z
         .object({
@@ -87,17 +54,5 @@ export const skillRouter = router({
         })
         .optional(),
     )
-    .query(async ({ input, ctx }) => {
-      log('getSkillList input: %O', input);
-
-      try {
-        return await ctx.marketService.searchSkill(input ?? {});
-      } catch (error) {
-        log('Error fetching skill list: %O', error);
-        throw new TRPCError({
-          code: 'INTERNAL_SERVER_ERROR',
-          message: 'Failed to fetch skill list',
-        });
-      }
-    }),
+    .query(async () => disabledSkillMarket()),
 });

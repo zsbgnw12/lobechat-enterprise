@@ -373,6 +373,7 @@ const SkillList = memo(() => {
 
   return (
     <div className={styles.container}>
+      <div className={styles.description}>{t('tab.skillDesc')}</div>
       {integrations.length > 0 && renderIntegrations()}
       {hasIntegrationsSection && hasCommunitySection && <Divider style={{ margin: 0 }} />}
       {marketAgentSkills.length > 0 && renderMarketAgentSkills()}

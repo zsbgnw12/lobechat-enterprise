@@ -2,15 +2,15 @@
  * Lobe Skill Store Executor
  *
  * Creates and exports the SkillStoreExecutor instance for registration.
- * Handles skill search and import from market/URL.
  */
 import { SkillStoreExecutionRuntime } from '@lobechat/builtin-tool-skill-store/executionRuntime';
 import { SkillStoreExecutor } from '@lobechat/builtin-tool-skill-store/executor';
 
-import { marketApiService } from '@/services/marketApi';
 import { agentSkillService } from '@/services/skill';
 
-// Create runtime with client-side service
+const PUBLIC_SKILL_MARKET_DISABLED =
+  'Public skill market is disabled. Import from GitHub, URL, or ZIP instead.';
+
 const runtime = new SkillStoreExecutionRuntime({
   service: {
     importFromGitHub: async (gitUrl) => {
@@ -18,10 +18,8 @@ const runtime = new SkillStoreExecutionRuntime({
       if (!result) throw new Error('Import failed');
       return { skill: { id: result.skill.id, name: result.skill.name }, status: result.status };
     },
-    importFromMarket: async (identifier) => {
-      const result = await agentSkillService.importFromMarket(identifier);
-      if (!result) throw new Error('Import failed');
-      return { skill: { id: result.skill.id, name: result.skill.name }, status: result.status };
+    importFromMarket: async () => {
+      throw new Error(PUBLIC_SKILL_MARKET_DISABLED);
     },
     importFromUrl: async (url) => {
       const result = await agentSkillService.importFromUrl({ url });
@@ -34,26 +32,13 @@ const runtime = new SkillStoreExecutionRuntime({
       return { skill: { id: result.skill.id, name: result.skill.name }, status: result.status };
     },
     onSkillImported: async () => {
-      // Dynamic import to avoid circular dependency (this file is inside the tool store)
       const { getToolStoreState } = await import('@/store/tool/store');
       await getToolStoreState().refreshAgentSkills();
     },
-    searchSkill: async (params) => {
-      const result = await marketApiService.searchSkill({
-        ...params,
-        // Only pass sort if it's a valid SkillSorts value
-        sort: params.sort as any,
-      });
-      // Transform SDK response to match expected interface
-      return {
-        items: result.items,
-        page: result.currentPage,
-        pageSize: result.pageSize,
-        total: result.totalCount,
-      };
+    searchSkill: async () => {
+      throw new Error(PUBLIC_SKILL_MARKET_DISABLED);
     },
   },
 });
 
-// Create executor instance with the runtime
 export const skillStoreExecutor = new SkillStoreExecutor(runtime);

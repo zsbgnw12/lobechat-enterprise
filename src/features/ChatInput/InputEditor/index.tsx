@@ -2,8 +2,8 @@ import { isDesktop } from '@lobechat/const';
 import { HotkeyEnum, KeyEnum } from '@lobechat/const/hotkeys';
 import { chainInputCompletion } from '@lobechat/prompts';
 import { isCommandPressed, merge } from '@lobechat/utils';
-import { INSERT_MENTION_COMMAND, ReactAutoCompletePlugin, ReactMathPlugin } from '@lobehub/editor';
-import { Editor, FloatMenu, useEditorState } from '@lobehub/editor/react';
+import { INSERT_MENTION_COMMAND, ReactAutoCompletePlugin } from '@lobehub/editor';
+import { Editor, useEditorState } from '@lobehub/editor/react';
 import { combineKeys } from '@lobehub/ui';
 import { css, cx } from 'antd-style';
 import Fuse from 'fuse.js';
@@ -261,27 +261,17 @@ const InputEditor = memo<{ defaultRows?: number; placeholder?: ReactNode }>(
     const slashOption = useMemo(() => ({ items: slashItems }), [slashItems]);
 
     const richRenderProps = useMemo(() => {
+      // [enterprise-fork] @lobehub/editor 4.18.1+ 不再导出 FloatMenu；数学插件用默认弹层
       const basePlugins = !enableRichRender
         ? CHAT_INPUT_EMBED_PLUGINS
-        : createChatInputRichPlugins({
-            mathPlugin: Editor.withProps(ReactMathPlugin, {
-              renderComp: expand
-                ? undefined
-                : (props) => (
-                    <FloatMenu
-                      {...props}
-                      getPopupContainer={() => (slashMenuRef as any)?.current}
-                    />
-                  ),
-            }),
-          });
+        : createChatInputRichPlugins();
 
       const plugins = autoCompletePlugin ? [...basePlugins, autoCompletePlugin] : basePlugins;
 
       return !enableRichRender
         ? { enablePasteMarkdown: false, markdownOption: false, plugins }
         : { plugins };
-    }, [enableRichRender, expand, slashMenuRef, autoCompletePlugin]);
+    }, [enableRichRender, autoCompletePlugin]);
 
     return (
       <Editor
@@ -290,6 +280,9 @@ const InputEditor = memo<{ defaultRows?: number; placeholder?: ReactNode }>(
         className={className}
         content={''}
         editor={editor}
+        getPopupContainer={() =>
+          (slashMenuRef as { current: HTMLElement | null } | undefined)?.current ?? null
+        }
         {...{ slashPlacement }}
         {...richRenderProps}
         mentionOption={mentionOption}

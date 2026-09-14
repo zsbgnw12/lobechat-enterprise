@@ -402,6 +402,7 @@ describe('QQAdapter', () => {
       const data = await message.attachments[0].fetchData!();
 
       expect(data).toBeInstanceOf(Buffer);
+      if (!Buffer.isBuffer(data)) throw new Error('expected Buffer');
       expect(data.length).toBe(4);
 
       vi.unstubAllGlobals();

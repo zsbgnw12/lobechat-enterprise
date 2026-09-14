@@ -850,7 +850,7 @@
   "tab.security": "安全",
   "tab.serviceModel": "服务模型",
   "tab.skill": "技能管理",
-  "tab.skillDesc": "管理已连接的技能和集成",
+  "tab.skillDesc": "在此安装的技能对所有登录用户可见，可在对话中直接选用。",
   "tab.skillDetail": "技能详情",
   "tab.skillEmpty": "尚未连接任何技能",
   "tab.skillInstalled": "已安装的技能",

@@ -18,5 +18,5 @@ export const ProductLogo = memo<ProductLogoProps>((props) => {
     return <CustomLogo {...props} />;
   }
 
-  return <heihub {...props} />;
+  return <LobeHub {...props} />;
 });

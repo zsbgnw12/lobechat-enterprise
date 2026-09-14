@@ -450,7 +450,7 @@ const getProviderLocalConfig = async (provider?: ModelProviderKey): Promise<any[
     try {
       const modules = await import('model-bank');
 
-      providerLocalConfig = modules[provider];
+      providerLocalConfig = (modules as Record<string, unknown>)[provider] as any[] | null;
     } catch {
       // If configuration file doesn't exist or import fails, keep as null
       providerLocalConfig = null;

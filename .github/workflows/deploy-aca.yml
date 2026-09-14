@@ -68,6 +68,8 @@ jobs:
           CHAT_GW_URL: https://gaw-chat-tools-d0dhb6h2hwbac2ev.southeastasia-01.azurewebsites.net
           GONGDAN_API_BASE: https://gongdan-b5fzbtgteqd5gzfb.eastasia-01.azurewebsites.net/api
           ENTERPRISE_ADMIN_EMAIL: zsbgnw@gmail.com
+          AZURE_STORAGE_CONNECTION_STRING: ${{ secrets.AZURE_STORAGE_CONNECTION_STRING }}
+          AZURE_STORAGE_CONTAINER: ${{ secrets.AZURE_STORAGE_CONTAINER }}
         run: |
           set -euo pipefail
 
@@ -91,6 +93,13 @@ jobs:
             if [ -n "${GONGDAN_API_KEY:-}" ]; then
               SECRET_ARGS+=("gongdan-api-key=$GONGDAN_API_KEY")
               ENV_ARGS+=("GONGDAN_API_KEY=secretref:gongdan-api-key")
+            fi
+            if [ -n "${AZURE_STORAGE_CONNECTION_STRING:-}" ]; then
+              SECRET_ARGS+=("azure-storage-connection-string=$AZURE_STORAGE_CONNECTION_STRING")
+              ENV_ARGS+=("AZURE_STORAGE_CONNECTION_STRING=secretref:azure-storage-connection-string")
+            fi
+            if [ -n "${AZURE_STORAGE_CONTAINER:-}" ]; then
+              ENV_ARGS+=("AZURE_STORAGE_CONTAINER=$AZURE_STORAGE_CONTAINER")
             fi
             if [ "${#SECRET_ARGS[@]}" -gt 0 ]; then
               az containerapp secret set \
