@@ -80,7 +80,7 @@ const Sidebar = memo<SidebarProps>(({ active }) => {
 
   return (
     <aside className={styles.wrapper}>
-      <Flexbox vertical className={styles.nav}>
+      <Flexbox className={styles.nav}>
         <div className={styles.title}>企业管理</div>
         {ADMIN_NAV_ITEMS.map((item) => {
           const Icon = item.icon;

@@ -116,7 +116,7 @@ const GwTesterPage = memo(() => {
       />
       <PageBody>
         <CasdoorLoginGate>
-          <Flexbox horizontal wrap className={styles.col} gap={16}>
+          <Flexbox horizontal className={styles.col} gap={16} wrap={'wrap'}>
             <div className={`${styles.colLeft} ${styles.panel}`}>
               <div className={styles.title}>工具</div>
               {isLoading ? (

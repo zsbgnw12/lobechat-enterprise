@@ -4,8 +4,8 @@ import { type LobeChatDatabase } from '@lobechat/database';
 import { initNewUserForBusiness } from '@/business/server/user';
 import { UserModel } from '@/database/models/user';
 import { initializeServerAnalytics } from '@/libs/analytics';
+import { createFileStorageClient } from '@/server/modules/fileStorage';
 import { KeyVaultsGateKeeper } from '@/server/modules/KeyVaultsEncrypt';
-import { FileS3 } from '@/server/modules/S3';
 
 type CreatedUser = {
   createdAt?: Date | null;

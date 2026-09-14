@@ -10,7 +10,7 @@ const genUserLLMConfig = (specificConfig: Record<any, any>): UserModelProviderCo
     ] as ModelProviderCard;
     const providerConfig = specificConfig[provider as keyof typeof specificConfig] || {};
 
-    config[provider] = {
+    config[provider as keyof UserModelProviderConfig] = {
       enabled: providerConfig.enabled !== undefined ? providerConfig.enabled : false,
       enabledModels: providerCard ? ProviderCards.filterEnabledModels(providerCard) : [],
       ...(providerConfig.fetchOnClient !== undefined && {

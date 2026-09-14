@@ -41,7 +41,7 @@ const BrandWatermark = memo<Omit<FlexboxProps, 'children'>>(({ style, ...rest })
           rel="noreferrer"
           target="_blank"
         >
-          <heihub size={20} type={'text'} />
+          <LobeHub size={20} type={'text'} />
         </a>
       )}
     </Flexbox>

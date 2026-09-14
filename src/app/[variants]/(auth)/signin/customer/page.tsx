@@ -65,7 +65,7 @@ const CustomerSignInPage = () => {
   };
 
   return (
-    <AuthCard description="" title="客户编号登录">
+    <AuthCard title="客户编号登录">
       <Flexbox gap={12}>
         <Text className={styles.hint}>凭工单系统发放的客户编号登录,无需密码。</Text>
         <Form form={form} layout="vertical" onFinish={handleSubmit}>

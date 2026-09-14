@@ -1,10 +1,13 @@
 import { z } from 'zod';
 
 import { authedProcedure, router } from '@/libs/trpc/lambda';
+import { serverDatabase } from '@/libs/trpc/lambda/middleware';
 import { createFileServiceModule } from '@/server/services/file/impls';
 
+const uploadProcedure = authedProcedure.use(serverDatabase);
+
 export const uploadRouter = router({
-  createS3PreSignedUrl: authedProcedure
+  createS3PreSignedUrl: uploadProcedure
     .input(z.object({ pathname: z.string() }))
     .mutation(async ({ ctx, input }) => {
       // [enterprise-fork] route through createFileServiceModule so the storage

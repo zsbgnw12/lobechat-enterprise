@@ -5,7 +5,7 @@ on:
     branches: [main]
   push:
     branches-ignore: [main]
-  workflow_dispatch:
+  workflow_dispatch: {}
 
 concurrency:
   group: ci-${{ github.ref }}
@@ -15,7 +15,7 @@ permissions:
   contents: read
 
 env:
-  NODE_VERSION: "20"
+  NODE_VERSION: '20'
 
 jobs:
   install:
@@ -92,7 +92,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Verify "Enterprise AI Workspace" replacement is intact
+      - name: Verify "超级运营中心" replacement is intact
         shell: bash
         run: |
           set -euo pipefail
@@ -101,13 +101,13 @@ jobs:
             exit 1
           fi
 
-          count=$(grep -rl "Enterprise AI Workspace" locales --include="*.json" 2>/dev/null | wc -l)
+          count=$(grep -rl "超级运营中心" locales --include="*.json" 2>/dev/null | wc -l)
           threshold=100
 
-          echo "Files containing 'Enterprise AI Workspace': $count (threshold: $threshold)"
+          echo "Files containing '超级运营中心': $count (threshold: $threshold)"
 
           if [ "$count" -lt "$threshold" ]; then
-            echo "::error::i18n brand protection regressed: only $count files contain 'Enterprise AI Workspace' (expected >= $threshold). This usually means an upstream merge overwrote the de-brand. See CLAUDE.md."
+            echo "::error::i18n brand protection regressed: only $count files contain '超级运营中心' (expected >= $threshold). This usually means an upstream merge overwrote the de-brand. See CLAUDE.md."
             exit 1
           fi
 
@@ -119,7 +119,7 @@ jobs:
           # but flag any that appear on the VALUE side of a JSON pair.
           leaks=$(grep -rEn '"[^"]*"\s*:\s*"[^"]*(LobeHub|LobeChat)[^"]*"' locales --include="*.json" || true)
           if [ -n "$leaks" ]; then
-            echo "::error::Found upstream brand strings (LobeHub/LobeChat) in locale VALUES. De-brand rule: values must say 'Enterprise AI Workspace'. Offending lines:"
+            echo "::error::Found upstream brand strings (LobeHub/LobeChat) in locale VALUES. De-brand rule: values must say '超级运营中心'. Offending lines:"
             echo "$leaks" | head -50
             exit 1
           fi

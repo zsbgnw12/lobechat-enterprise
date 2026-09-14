@@ -1,7 +1,8 @@
 import type { ExecutionSnapshot, ISnapshotStore, SnapshotSummary } from '@lobechat/agent-tracing';
 import debug from 'debug';
 
-import { type FileStorageClient, createFileStorageClient } from '@/server/modules/fileStorage';
+import type { FileStorageClient } from '@/server/modules/fileStorage';
+import { createFileStorageClient } from '@/server/modules/fileStorage';
 
 const log = debug('lobe-server:agent-tracing:s3');
 
