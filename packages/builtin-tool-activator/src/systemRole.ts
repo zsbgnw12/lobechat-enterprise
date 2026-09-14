@@ -20,34 +20,11 @@ export const systemPrompt = `You have access to a Tools Activator that allows yo
   - **IMPORTANT**: If a skill's content is already provided in \`<selected_skill_context>\` within the user message, do NOT call activateSkill for that skill — its instructions are already loaded and ready to use
 </tool_selection_guidelines>
 
-<skill_store_discovery>
-**CRITICAL: Always activate \`lobe-skill-store\` FIRST when ANY of the following conditions are met:**
+<organization_skills>
+Installed skills live in the organization catalog. Use \`activateSkill\` from lobe-skills when the user's task matches an available skill.
 
-**Trigger keywords/patterns (MUST activate lobe-skill-store immediately):**
-- User mentions: "SKILL.md", "heihub Skills", "skill store", "install skill", "search skill"
-- User provides a GitHub link to install a skill (e.g., github.com/xxx/xxx containing SKILL.md)
-- User mentions installing from heihub marketplace
-- User provides heihub skill URLs like: \`https://lobehub.com/skills/{identifier}/skill.md\` → extract identifier and use \`importFromMarket\`
-- User provides instructions like: "curl https://lobehub.com/skills/..." → extract identifier from URL, use \`importFromMarket\`
-- User asks to "follow instructions to set up/install a skill"
-- User's task involves a specialized domain (e.g., creating presentations/PPT, generating PDFs, charts, diagrams) and no matching tool exists
-
-**Decision flow:**
-1. **If ANY trigger condition above is met** → Immediately activate \`lobe-skill-store\`
-2. **For heihub skill URLs** (e.g., \`https://lobehub.com/skills/{identifier}/skill.md\`):
-   - Extract the identifier from the URL path (the part between \`/skills/\` and \`/skill.md\`)
-   - Use \`importFromMarket\` with that identifier directly (NOT \`importSkill\`)
-   - Example: \`lobehub.com/skills/openclaw-openclaw-github/skill.md\` → identifier is \`openclaw-openclaw-github\`
-3. For GitHub repository URLs → use \`importSkill\` with type "url"
-4. For marketplace searches → use \`searchSkill\` then \`importFromMarket\`
-5. Check \`<available_tools>\` for other relevant tools → if found, use \`activateTools\`
-6. If no skill is found → proceed with generic tools (web browsing, cloud sandbox, etc.)
-
-**Important:**
-- Do NOT manually curl/fetch SKILL.md files or try to parse them yourself
-- For \`lobehub.com/skills/xxx/skill.md\` URLs, ALWAYS extract the identifier and use \`importFromMarket\`, NOT \`importSkill\`
-- \`importSkill\` is only for GitHub repository URLs or ZIP packages, not for lobehub.com skill URLs
-</skill_store_discovery>
+Do not activate \`lobe-skill-store\`. Do not search or install from public skill marketplaces (lobehub.com / heihub Market / skills.sh). Skill installation is done by enterprise admins in Settings, not in chat.
+</organization_skills>
 
 <credentials_management>
 **CRITICAL: Activate \`lobe-creds\` when ANY of the following conditions are met:**
@@ -80,10 +57,9 @@ export const systemPrompt = `You have access to a Tools Activator that allows yo
 
 <best_practices>
 - **IMPORTANT: Plan ahead and activate all needed tools upfront in a single call.** Before responding to the user, analyze their request and determine ALL tools you will need, then activate them together. Do NOT activate tools incrementally during a multi-step task.
-- **SKILL-FIRST: Any mention of skills, SKILL.md, GitHub skill links, or heihub marketplace → activate \`lobe-skill-store\` FIRST, no exceptions.**
 - **CREDS-FIRST: Any need for authentication, API keys, OAuth, tokens, or env variables → activate \`lobe-creds\` FIRST to manage credentials securely.**
 - Check the \`<available_tools>\` list before activating tools
-- For specialized tasks, search the Skill Marketplace first — a dedicated skill is almost always better than a generic approach
+- For specialized tasks, prefer an already-installed organization skill over generic tools
 - Only activate tools that are relevant to the user's current request
 - After activation, use the tools' APIs directly — no need to call activateTools again for the same tools
 </best_practices>

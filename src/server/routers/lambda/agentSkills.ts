@@ -6,15 +6,18 @@ import { z } from 'zod';
 import { AgentSkillModel } from '@/database/models/agentSkill';
 import { FileModel } from '@/database/models/file';
 import { authedProcedure, router } from '@/libs/trpc/lambda';
-import { serverDatabase } from '@/libs/trpc/lambda/middleware';
+import { requireEnterpriseAdmin, serverDatabase } from '@/libs/trpc/lambda/middleware';
+import { resolveEnterpriseSkillOwnerId } from '@/server/services/enterpriseRole';
 import { FileService } from '@/server/services/file';
-import { MarketService } from '@/server/services/market';
 import {
   SkillImporter,
   SkillImportError,
   SkillResourceError,
   SkillResourceService,
 } from '@/server/services/skill';
+
+const PUBLIC_SKILL_MARKET_DISABLED =
+  'Public skill market is disabled. Import from GitHub, URL, or ZIP instead.';
 
 // ===== Error Handling =====
 
@@ -56,17 +59,22 @@ const handleSkillImportError = (error: unknown): never => {
 const skillProcedure = authedProcedure.use(serverDatabase).use(async (opts) => {
   const { ctx } = opts;
 
+  // [enterprise-fork] 技能目录挂在管理员 vault 上，全员读同一份
+  const ownerId = await resolveEnterpriseSkillOwnerId(ctx.serverDB, ctx.userId);
+
   return opts.next({
     ctx: {
-      fileModel: new FileModel(ctx.serverDB, ctx.userId),
-      fileService: new FileService(ctx.serverDB, ctx.userId),
-      marketService: new MarketService({ userInfo: { userId: ctx.userId } }),
-      skillImporter: new SkillImporter(ctx.serverDB, ctx.userId),
-      skillModel: new AgentSkillModel(ctx.serverDB, ctx.userId),
-      skillResourceService: new SkillResourceService(ctx.serverDB, ctx.userId),
+      fileModel: new FileModel(ctx.serverDB, ownerId),
+      fileService: new FileService(ctx.serverDB, ownerId),
+      skillImporter: new SkillImporter(ctx.serverDB, ownerId),
+      skillModel: new AgentSkillModel(ctx.serverDB, ownerId),
+      skillResourceService: new SkillResourceService(ctx.serverDB, ownerId),
     },
   });
 });
+
+/** [enterprise-fork] 安装 / 删除 / 改技能仅 cloud_admin */
+const skillAdminProcedure = skillProcedure.use(requireEnterpriseAdmin);
 
 // ===== Input Schemas =====
 
@@ -89,7 +97,7 @@ const updateSkillSchema = z.object({
 export const agentSkillsRouter = router({
   // ===== Create =====
 
-  create: skillProcedure.input(createSkillSchema).mutation(async ({ ctx, input }) => {
+  create: skillAdminProcedure.input(createSkillSchema).mutation(async ({ ctx, input }) => {
     try {
       return await ctx.skillImporter.createUserSkill(input);
     } catch (error) {
@@ -99,9 +107,11 @@ export const agentSkillsRouter = router({
 
   // ===== Delete =====
 
-  delete: skillProcedure.input(z.object({ id: z.string() })).mutation(async ({ ctx, input }) => {
-    return ctx.skillModel.delete(input.id);
-  }),
+  delete: skillAdminProcedure
+    .input(z.object({ id: z.string() }))
+    .mutation(async ({ ctx, input }) => {
+      return ctx.skillModel.delete(input.id);
+    }),
 
   // ===== Query =====
 
@@ -140,7 +150,7 @@ export const agentSkillsRouter = router({
     return ctx.skillModel.findByName(input.name);
   }),
 
-  importFromGitHub: skillProcedure
+  importFromGitHub: skillAdminProcedure
     .input(
       z.object({
         branch: z.string().optional(),
@@ -155,7 +165,7 @@ export const agentSkillsRouter = router({
       }
     }),
 
-  importFromUrl: skillProcedure
+  importFromUrl: skillAdminProcedure
     .input(z.object({ url: z.string().url() }))
     .mutation(async ({ ctx, input }) => {
       try {
@@ -165,7 +175,7 @@ export const agentSkillsRouter = router({
       }
     }),
 
-  importFromZip: skillProcedure
+  importFromZip: skillAdminProcedure
     .input(z.object({ zipFileId: z.string() }))
     .mutation(async ({ ctx, input }) => {
       try {
@@ -175,20 +185,13 @@ export const agentSkillsRouter = router({
       }
     }),
 
-  importFromMarket: skillProcedure
+  importFromMarket: skillAdminProcedure
     .input(z.object({ identifier: z.string() }))
-    .mutation(async ({ ctx, input }) => {
-      try {
-        // Get download URL from market service
-        const downloadUrl = ctx.marketService.getSkillDownloadUrl(input.identifier);
-        // Import using the download URL
-        return await ctx.skillImporter.importFromUrl(
-          { url: downloadUrl },
-          { identifier: input.identifier, source: 'market' },
-        );
-      } catch (error) {
-        handleSkillImportError(error);
-      }
+    .mutation(async () => {
+      throw new TRPCError({
+        code: 'FORBIDDEN',
+        message: PUBLIC_SKILL_MARKET_DISABLED,
+      });
     }),
 
   list: skillProcedure
@@ -256,7 +259,7 @@ export const agentSkillsRouter = router({
 
   // ===== Update =====
 
-  update: skillProcedure.input(updateSkillSchema).mutation(async ({ ctx, input }) => {
+  update: skillAdminProcedure.input(updateSkillSchema).mutation(async ({ ctx, input }) => {
     const { id, content, manifest } = input;
     return ctx.skillModel.update(id, {
       content,

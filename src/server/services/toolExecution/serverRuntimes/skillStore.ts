@@ -10,73 +10,61 @@ import {
 } from '@lobechat/builtin-tool-skill-store/executionRuntime';
 import debug from 'debug';
 
-import { UserModel } from '@/database/models/user';
-import { MarketService } from '@/server/services/market';
+import { getEnterpriseRole, resolveEnterpriseSkillOwnerId } from '@/server/services/enterpriseRole';
 import { SkillImporter } from '@/server/services/skill/importer';
 
 import { type ServerRuntimeRegistration } from './types';
 
 const log = debug('lobe-server:skill-store-runtime');
 
+const PUBLIC_SKILL_MARKET_DISABLED =
+  'Public skill market is disabled. Import from GitHub, URL, or ZIP instead.';
+
+const ORGANIZATION_SKILL_WRITE_FORBIDDEN =
+  'Only enterprise admins can install organization skills.';
+
 class SkillStoreServerRuntimeService implements SkillStoreRuntimeService {
   private importer: SkillImporter;
-  private marketService: MarketService;
+  private isAdmin: boolean;
 
-  constructor(options: { importer: SkillImporter; marketService: MarketService }) {
+  constructor(options: { importer: SkillImporter; isAdmin: boolean }) {
     this.importer = options.importer;
-    this.marketService = options.marketService;
+    this.isAdmin = options.isAdmin;
   }
 
+  private assertAdmin = () => {
+    if (!this.isAdmin) {
+      throw new Error(ORGANIZATION_SKILL_WRITE_FORBIDDEN);
+    }
+  };
+
   importFromGitHub = async (gitUrl: string): Promise<SkillImportServiceResult> => {
+    this.assertAdmin();
     const result = await this.importer.importFromGitHub({ gitUrl });
     return { skill: { id: result.skill.id, name: result.skill.name }, status: result.status };
   };
 
   importFromUrl = async (url: string): Promise<SkillImportServiceResult> => {
+    this.assertAdmin();
     const result = await this.importer.importFromUrl({ url });
     return { skill: { id: result.skill.id, name: result.skill.name }, status: result.status };
   };
 
   importFromZipUrl = async (url: string): Promise<SkillImportServiceResult> => {
+    this.assertAdmin();
     const result = await this.importer.importFromUrl({ url });
     return { skill: { id: result.skill.id, name: result.skill.name }, status: result.status };
   };
 
   searchSkill = async (
-    params: SearchSkillParams,
+    _params: SearchSkillParams,
   ): Promise<{ items: MarketSkillItem[]; page: number; pageSize: number; total: number }> => {
-    log('Searching skills with params: %O', params);
-
-    try {
-      const result = await this.marketService.searchSkill(params);
-      log('Search skills result: %O', result);
-      // Transform SDK response to match expected interface
-      return {
-        items: result.items,
-        page: result.currentPage,
-        pageSize: result.pageSize,
-        total: result.totalCount,
-      };
-    } catch (error) {
-      log('Error searching skills: %O', error);
-      throw error;
-    }
+    log('searchSkill blocked: %s', PUBLIC_SKILL_MARKET_DISABLED);
+    throw new Error(PUBLIC_SKILL_MARKET_DISABLED);
   };
 
-  importFromMarket = async (identifier: string): Promise<SkillImportServiceResult> => {
-    log('Importing skill from market: %s', identifier);
-
-    try {
-      const downloadUrl = this.marketService.getSkillDownloadUrl(identifier);
-      log('Download URL: %s', downloadUrl);
-
-      const result = await this.importFromZipUrl(downloadUrl);
-      log('Import from market result: %O', result);
-      return result;
-    } catch (error) {
-      log('Error importing skill from market: %O', error);
-      throw error;
-    }
+  importFromMarket = async (_identifier: string): Promise<SkillImportServiceResult> => {
+    throw new Error(PUBLIC_SKILL_MARKET_DISABLED);
   };
 }
 
@@ -93,30 +81,13 @@ export const skillStoreRuntime: ServerRuntimeRegistration = {
       throw new Error('userId is required for Skill Store execution');
     }
 
-    // Fetch market access token from user settings
-    let marketAccessToken: string | undefined;
-    try {
-      const userModel = new UserModel(context.serverDB, context.userId);
-      const userSettings = await userModel.getUserSettings();
-      marketAccessToken = (userSettings?.market as any)?.accessToken;
-      log(
-        'Fetched market accessToken for user %s: %s',
-        context.userId,
-        marketAccessToken ? 'exists' : 'not found',
-      );
-    } catch (error) {
-      log('Failed to fetch market accessToken for user %s: %O', context.userId, error);
-    }
-
-    const importer = new SkillImporter(context.serverDB, context.userId);
-    const marketService = new MarketService({
-      accessToken: marketAccessToken,
-      userInfo: { userId: context.userId },
-    });
+    const ownerId = await resolveEnterpriseSkillOwnerId(context.serverDB, context.userId);
+    const role = await getEnterpriseRole(context.serverDB, context.userId);
+    const importer = new SkillImporter(context.serverDB, ownerId);
 
     const service = new SkillStoreServerRuntimeService({
       importer,
-      marketService,
+      isAdmin: role.isAdmin,
     });
 
     return new SkillStoreExecutionRuntime({ service });

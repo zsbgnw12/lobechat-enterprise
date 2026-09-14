@@ -6,8 +6,7 @@ import { SkillStoreApiName, SkillStoreIdentifier } from './types';
 export const SkillStoreManifest: BuiltinToolManifest = {
   api: [
     {
-      description:
-        "Search for skills in the heihub Market. Use this to discover available skills that can extend Claude's capabilities. Search across skill names, descriptions, and summaries. Results can be filtered and sorted by various criteria (stars, downloads, etc).",
+      description: 'Public skill market search is disabled. Do not use this API.',
       name: SkillStoreApiName.searchSkill,
       parameters: {
         properties: {
@@ -53,8 +52,7 @@ export const SkillStoreManifest: BuiltinToolManifest = {
       },
     },
     {
-      description:
-        'Import/install a skill directly from the heihub Market using its identifier. This is the recommended way to install skills from the market after searching with searchSkill. The skill will be downloaded and installed automatically. Requires user confirmation before installation.',
+      description: 'Public skill market import is disabled. Do not use this API.',
       humanIntervention: 'required',
       name: SkillStoreApiName.importFromMarket,
       parameters: {
@@ -96,7 +94,7 @@ export const SkillStoreManifest: BuiltinToolManifest = {
   meta: {
     avatar: '🏪',
     description:
-      'Browse and install agent skills from the heihub marketplace. MUST USE this tool when users mention: "SKILL.md", "heihub Skills", "skill store", "install skill", "search skill", or need extended capabilities.',
+      'Import organization skills from GitHub, a SKILL.md URL, or a ZIP URL. Public skill marketplaces are disabled.',
     title: 'Skill Store',
   },
   systemRole: systemPrompt,

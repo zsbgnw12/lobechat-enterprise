@@ -975,7 +975,8 @@ When I am ___, I need ___
   'tab.security': 'Security',
   'tab.serviceModel': 'Service Model',
   'tab.skill': 'Skills',
-  'tab.skillDesc': 'Manage your connected skills and integrations',
+  'tab.skillDesc':
+    'Skills installed here are shared with every signed-in user and can be selected in chat.',
   'tab.skillDetail': 'Skill Details',
   'tab.skillEmpty': 'No skills connected yet',
   'tab.skillInstalled': 'Installed Skills',

@@ -61,6 +61,7 @@ import { getAbortError, isAbortError, throwIfAborted } from '@/server/services/a
 import { type AgentHook } from '@/server/services/agentRuntime/hooks/types';
 import { type StepLifecycleCallbacks } from '@/server/services/agentRuntime/types';
 import { DocumentService } from '@/server/services/document';
+import { resolveEnterpriseSkillOwnerId } from '@/server/services/enterpriseRole';
 import { FileService } from '@/server/services/file';
 import { KlavisService } from '@/server/services/klavis';
 import { MarketService } from '@/server/services/market';
@@ -1439,7 +1440,8 @@ export class AiAgentService {
         identifier: s.identifier,
         name: s.name,
       }));
-      const skillModel = new AgentSkillModel(this.db, this.userId);
+      const skillOwnerId = await resolveEnterpriseSkillOwnerId(this.db, this.userId);
+      const skillModel = new AgentSkillModel(this.db, skillOwnerId);
       const { data: dbSkills } = await skillModel.findAll();
       const dbMetas = dbSkills.map((s) => ({
         description: s.description ?? '',

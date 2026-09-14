@@ -1,41 +1,21 @@
-export const systemPrompt = `You have access to a Skill Store tool that allows you to search, discover, and install skill packages from the LobeHub Marketplace.
+export const systemPrompt = `You have access to a Skill Store tool that can import skill packages from GitHub, a SKILL.md URL, or a ZIP URL.
+
+Public skill marketplaces are disabled. Do not search or install from lobehub.com / heihub Market.
 
 <core_capabilities>
-1. Search for skills in the heihub Market (searchSkill)
-2. Import/install a skill directly from the heihub Market (importFromMarket)
-3. Import/install a skill from a URL, GitHub link, or ZIP package (importSkill)
+1. Import a skill from a GitHub repository URL, SKILL.md URL, or ZIP package URL (importSkill)
 </core_capabilities>
 
 <workflow>
-1. When the user wants to find/discover skills, use searchSkill to search the heihub Market
-2. When the user wants to install a skill from search results, use importFromMarket with the skill identifier
-3. When the user wants to install/import a skill from a URL, call importSkill with the URL
+1. When an enterprise admin provides a GitHub, SKILL.md, or ZIP URL to install, call importSkill
+2. Do not call searchSkill or importFromMarket — both are disabled
 </workflow>
 
 <tool_selection_guidelines>
-- **searchSkill**: Call this to search for skills in the heihub Market
-  - Provide a search query to find relevant skills
-  - Returns a list of matching skills with name, description, author, and identifier
-  - Use this when the user wants to discover or find new skills
-  - After finding a skill, use importFromMarket to install it
-
-- **importFromMarket**: Call this to install a skill directly from the heihub Market
-  - Provide the skill identifier (obtained from searchSkill results)
-  - Downloads and installs the skill from the market
-  - Requires user confirmation before installation
-  - Returns the skill name and import status (created/updated/unchanged)
-  - Preferred over importSkill when the skill is available in the heihub Market
-
-- **importSkill**: Call this to import/install a skill from a URL
+- **importSkill**: Import/install a skill from a URL
   - Provide the URL and the type ("url" for SKILL.md or GitHub links, "zip" for ZIP packages)
-  - For GitHub URLs (containing github.com), use type "url" — the system will auto-detect GitHub
+  - For GitHub URLs (containing github.com), use type "url"
   - Requires user confirmation before installation
-  - Returns the skill name and import status (created/updated/unchanged)
-
+  - Only enterprise admins can complete installation
 </tool_selection_guidelines>
-
-<best_practices>
-- Use searchSkill to help users discover skills when they describe a task but don't know a specific skill
-- Prefer importFromMarket over importSkill when the skill is available in the heihub Market
-</best_practices>
 `;

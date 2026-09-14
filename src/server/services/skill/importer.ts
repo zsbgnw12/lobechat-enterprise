@@ -269,7 +269,7 @@ export class SkillImporter {
       manifest: fullManifest,
       name: manifest.name,
       resources: resourceIds,
-      source: 'market', // GitHub source marked as market
+      source: 'user', // [enterprise-fork] GitHub 导入进组织目录，和手写/ZIP 一样走 Custom 列表
       zipFileHash,
     });
     log('importFromGitHub: created skill id=%s', skill.id);
@@ -462,7 +462,7 @@ export class SkillImporter {
       manifest: fullManifest,
       name: manifest.name,
       ...(resourceMap && { resources: resourceMap }),
-      source: options?.source || 'market', // URL source defaults to market
+      source: options?.source || 'user', // [enterprise-fork] URL 导入默认进组织自定义目录
       ...(zipFileHash && { zipFileHash }),
     });
     log('importFromUrl: created skill id=%s', skill.id);

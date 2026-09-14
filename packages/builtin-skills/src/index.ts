@@ -15,5 +15,4 @@ export const builtinSkills: BuiltinSkill[] = [
   ArtifactsSkill,
   LobeHubSkill,
   TaskSkill,
-  // FindSkillsSkill
 ];
