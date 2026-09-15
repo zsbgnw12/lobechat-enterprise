@@ -357,7 +357,10 @@ export function defineConfig(config: CustomNextConfig) {
       '@napi-rs/canvas',
       '@napi-rs/canvas-linux-x64-gnu',
       '@napi-rs/canvas-linux-x64-musl',
+      '@chat-adapter/discord',
+      '@discordjs/ws',
       'discord.js',
+      'zlib-sync',
       'ffmpeg-static',
       'pdfjs-dist',
       'ajv',
@@ -365,6 +368,29 @@ export function defineConfig(config: CustomNextConfig) {
     ],
 
     transpilePackages: ['mermaid', 'better-auth-harmony'],
+    webpack: (webpackConfig) => {
+      webpackConfig.module?.rules?.push({
+        test: /\.md$/i,
+        type: 'asset/source',
+      });
+
+      webpackConfig.resolve ??= {};
+      const alias =
+        webpackConfig.resolve.alias &&
+        typeof webpackConfig.resolve.alias === 'object' &&
+        !Array.isArray(webpackConfig.resolve.alias)
+          ? webpackConfig.resolve.alias
+          : {};
+      webpackConfig.resolve.alias = {
+        ...alias,
+        'utf-8-validate': false,
+        'bufferutil': false,
+        'erlpack': false,
+        'zlib-sync': false,
+      };
+
+      return webpackConfig;
+    },
     turbopack: {
       rules: {
         ...(isTest
