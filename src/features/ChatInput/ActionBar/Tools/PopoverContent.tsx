@@ -6,6 +6,8 @@ import { memo, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 
+import { useIsAdmin } from '@/hooks/useEnterpriseRole';
+
 import { ScrollSignalProvider } from './ScrollSignalContext';
 import SkillActivateMode from './SkillActivateMode';
 import ToolsList, { toolsListStyles } from './ToolsList';
@@ -59,6 +61,9 @@ const PopoverContent = memo<PopoverContentProps>(({ items, onOpenStore }) => {
   const { t } = useTranslation('setting');
   const navigate = useNavigate();
   const [searchKeyword, setSearchKeyword] = useState('');
+  // [enterprise-fork] /settings/skill 是管理员专属页，设置侧栏已隐藏。
+  // 这里是最后一个漏出去的入口，非管理员点进去只会 403。
+  const isAdmin = useIsAdmin();
 
   const { close: closePopover } = usePopoverContext();
 
@@ -106,21 +111,23 @@ const PopoverContent = memo<PopoverContentProps>(({ items, onOpenStore }) => {
           <div className={toolsListStyles.itemContent}>{t('skillStore.title')}</div>
           <Icon className={styles.trailingIcon} icon={ChevronRight} size={16} />
         </div>
-        <div
-          className={toolsListStyles.item}
-          role="button"
-          tabIndex={0}
-          onClick={() => {
-            closePopover();
-            navigate('/settings/skill');
-          }}
-        >
-          <div className={toolsListStyles.itemIcon}>
-            <Icon icon={Settings} size={20} />
+        {isAdmin && (
+          <div
+            className={toolsListStyles.item}
+            role="button"
+            tabIndex={0}
+            onClick={() => {
+              closePopover();
+              navigate('/settings/skill');
+            }}
+          >
+            <div className={toolsListStyles.itemIcon}>
+              <Icon icon={Settings} size={20} />
+            </div>
+            <div className={toolsListStyles.itemContent}>{t('tools.plugins.management')}</div>
+            <Icon className={styles.trailingIcon} icon={ExternalLink} size={16} />
           </div>
-          <div className={toolsListStyles.itemContent}>{t('tools.plugins.management')}</div>
-          <Icon className={styles.trailingIcon} icon={ExternalLink} size={16} />
-        </div>
+        )}
       </div>
     </Flexbox>
   );
