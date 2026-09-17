@@ -36,8 +36,13 @@ const ImportFromGithubModal = memo<ImportFromGithubModalProps>(({ open, onOpenCh
     setError(null);
 
     try {
-      await importAgentSkillFromGitHub({ gitUrl: trimmed });
-      message.success(t('agentSkillModal.importSuccess'));
+      const imported = await importAgentSkillFromGitHub({ gitUrl: trimmed });
+      const count = imported?.results.length ?? 0;
+      message.success(
+        count > 1
+          ? t('agentSkillModal.importSuccessCount', { count })
+          : t('agentSkillModal.importSuccess'),
+      );
       handleClose();
     } catch (err: any) {
       setError(err?.message || String(err));

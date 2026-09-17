@@ -1,11 +1,7 @@
 import { readFile } from 'node:fs/promises';
 
-import {
-  type ParsedSkill,
-  type ParsedZipSkill,
-  type SkillManifest,
-  skillManifestSchema,
-} from '@lobechat/types';
+import type { ParsedSkill, ParsedZipSkill, SkillManifest } from '@lobechat/types';
+import { importedSkillManifestSchema } from '@lobechat/types';
 import { unzip as fflateUnzip, zip as fflateZip } from 'fflate';
 import matter from 'gray-matter';
 import { sha256 } from 'js-sha256';
@@ -89,18 +85,19 @@ export class SkillParser {
 
       // Extract resource files
       const resources = this.extractResources(unzipped, skillMdPath);
+      const skillDir = this.skillDirFromPath(skillMdPath, unzipped);
 
       // If repackSkillZip is true, create a new ZIP with only the skill files
       if (options?.repackSkillZip) {
         const skillZipBuffer = await this.repackSkillZip(skillMdContent, resources);
         const zipHash = sha256(skillZipBuffer);
-        return { content, manifest, resources, skillZipBuffer, zipHash };
+        return { content, manifest, resources, skillDir, skillZipBuffer, zipHash };
       }
 
       // Calculate ZIP hash from original buffer
       const zipHash = sha256(buffer);
 
-      return { content, manifest, resources, zipHash };
+      return { content, manifest, resources, skillDir, zipHash };
     } catch (error) {
       if (error instanceof SkillParseError || error instanceof SkillManifestError) {
         throw error;
@@ -110,10 +107,42 @@ export class SkillParser {
   }
 
   /**
+   * Parse every top-level skill in a ZIP (GitHub repo archives).
+   * Nested SKILL.md files inside an already-selected skill directory are skipped.
+   */
+  async parseZipPackageAll(buffer: Buffer, options?: ParseZipOptions): Promise<ParsedZipSkill[]> {
+    const unzipped = await this.unzipBuffer(buffer);
+    const skillMdPaths = this.findAllSkillMdPaths(unzipped, options?.basePath);
+
+    if (skillMdPaths.length === 0) {
+      throw new SkillParseError('SKILL.md not found in zip package');
+    }
+
+    const results: ParsedZipSkill[] = [];
+    for (const skillMdPath of skillMdPaths) {
+      const skillMdContent = new TextDecoder().decode(unzipped[skillMdPath]);
+      const { content, manifest } = this.parseSkillMd(skillMdContent);
+      const resources = this.extractResources(unzipped, skillMdPath);
+      const skillDir = this.skillDirFromPath(skillMdPath, unzipped);
+
+      if (options?.repackSkillZip) {
+        const skillZipBuffer = await this.repackSkillZip(skillMdContent, resources);
+        const zipHash = sha256(skillZipBuffer);
+        results.push({ content, manifest, resources, skillDir, skillZipBuffer, zipHash });
+        continue;
+      }
+
+      results.push({ content, manifest, resources, skillDir, zipHash: sha256(buffer) });
+    }
+
+    return results;
+  }
+
+  /**
    * Validate manifest data
    */
   validateManifest(data: unknown): SkillManifest {
-    const result = skillManifestSchema.safeParse(data);
+    const result = importedSkillManifestSchema.safeParse(data);
     if (!result.success) {
       throw new SkillManifestError(
         'Invalid skill manifest: ' + result.error.issues.map((i) => i.message).join(', '),
@@ -234,6 +263,58 @@ export class SkillParser {
     }
 
     return { skillMdContent: '', skillMdPath: null };
+  }
+
+  /**
+   * Collect SKILL.md files that represent top-level skills.
+   * A SKILL.md nested inside another skill directory is ignored.
+   */
+  private findAllSkillMdPaths(unzipped: Record<string, Uint8Array>, basePath?: string): string[] {
+    const allPaths = Object.keys(unzipped);
+    const skillMdPaths = allPaths.filter((path) => {
+      if (path.includes('__MACOSX')) return false;
+      if (path.split('/').some((segment) => segment.startsWith('.'))) return false;
+      return path === 'SKILL.md' || path.endsWith('/SKILL.md');
+    });
+
+    if (basePath) {
+      const normalizedBasePath = basePath.replaceAll(/^\/|\/$/g, '');
+      const rootPrefix = this.findGitHubRootPrefix(allPaths) ?? '';
+      const targetPath = normalizedBasePath
+        ? `${rootPrefix}${normalizedBasePath}/SKILL.md`
+        : `${rootPrefix}SKILL.md`;
+      return skillMdPaths.filter(
+        (path) => path === targetPath || path === `${normalizedBasePath}/SKILL.md`,
+      );
+    }
+
+    skillMdPaths.sort((a, b) => a.split('/').length - b.split('/').length);
+
+    const accepted: string[] = [];
+    for (const path of skillMdPaths) {
+      const dir = path.includes('/') ? path.slice(0, path.lastIndexOf('/') + 1) : '';
+      const nested = accepted.some((existing) => {
+        const existingDir = existing.includes('/')
+          ? existing.slice(0, existing.lastIndexOf('/') + 1)
+          : '';
+        return existingDir !== dir && dir.startsWith(existingDir);
+      });
+      if (!nested) accepted.push(path);
+    }
+
+    return accepted;
+  }
+
+  /**
+   * Directory of a skill relative to the GitHub zip root (or zip root).
+   */
+  private skillDirFromPath(skillMdPath: string, unzipped: Record<string, Uint8Array>): string {
+    const rootPrefix = this.findGitHubRootPrefix(Object.keys(unzipped)) ?? '';
+    const relative = skillMdPath.startsWith(rootPrefix)
+      ? skillMdPath.slice(rootPrefix.length)
+      : skillMdPath;
+    if (!relative.includes('/')) return '';
+    return relative.slice(0, relative.lastIndexOf('/'));
   }
 
   /**

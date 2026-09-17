@@ -159,12 +159,13 @@ export default {
   'agentSkillModal.description': 'Description',
   'agentSkillModal.descriptionPlaceholder': 'Briefly describe this skill',
   'agentSkillModal.github.desc':
-    'Paste the URL of a skill directory from a public GitHub repository. The directory must contain a SKILL.md file.',
+    'Paste a GitHub repo or skill directory URL. A repo URL imports every top-level SKILL.md; a directory URL imports that skill only. Private repos need SKILL_GITHUB_TOKEN on the server.',
   'agentSkillModal.github.title': 'Import from GitHub',
   'agentSkillModal.github.urlPlaceholder':
-    'https://github.com/username/repo/tree/main/skills/my-skill',
+    'https://github.com/username/repo or .../tree/main/skills/my-skill',
   'agentSkillModal.importError': 'Import failed: {{error}}',
   'agentSkillModal.importSuccess': 'Agent Skill imported successfully',
+  'agentSkillModal.importSuccessCount': '{{count}} skills imported successfully',
   'agentSkillModal.upload.desc': 'Upload a local .zip or .skill file to install.',
   'agentSkillModal.upload.dragText': 'Drag and drop or click to upload',
   'agentSkillModal.upload.requirementSkillMd':
@@ -961,7 +962,7 @@ When I am ___, I need ___
   'tab.hotkey': 'Hotkeys',
   'tab.image': 'Image Generation',
   'tab.importFromGithub': 'Import from GitHub',
-  'tab.importFromGithub.desc': 'Import from a public GitHub repository',
+  'tab.importFromGithub.desc': 'Import from a GitHub repository (public, or private with a token)',
   'tab.importFromUrl': 'Import from URL',
   'tab.importFromUrl.desc': 'Import via a direct link to SKILL.md',
   'tab.llm': 'Language Model',

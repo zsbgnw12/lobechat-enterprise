@@ -27,6 +27,16 @@ class AgentSkillService {
     return lambdaClient.agentSkills.importFromGitHub.mutate(params);
   }
 
+  async importGitHubSkills(
+    params: ImportGitHubInput,
+  ): Promise<{ results: SkillImportResult[] } | undefined> {
+    return lambdaClient.agentSkills.importGitHubSkills.mutate(params);
+  }
+
+  async refreshFromSource(id: string): Promise<SkillImportResult | undefined> {
+    return lambdaClient.agentSkills.refreshFromSource.mutate({ id });
+  }
+
   async importFromUrl(params: ImportUrlInput): Promise<SkillImportResult | undefined> {
     return lambdaClient.agentSkills.importFromUrl.mutate(params);
   }

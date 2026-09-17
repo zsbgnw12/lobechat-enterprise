@@ -13,6 +13,7 @@ import { nanoid } from '@lobechat/utils';
 import debug from 'debug';
 
 import { AgentSkillModel } from '@/database/models/agentSkill';
+import type { GitHubRepoInfo } from '@/server/modules/GitHub';
 import { GitHub, GitHubNotFoundError, GitHubParseError } from '@/server/modules/GitHub';
 import { FileService } from '@/server/services/file';
 
@@ -35,7 +36,7 @@ export class SkillImporter {
     this.parser = new SkillParser();
     this.resourceService = new SkillResourceService(db, userId);
     this.fileService = new FileService(db, userId);
-    this.github = new GitHub({ userAgent: 'LobeHub-Skill-Importer' });
+    this.github = new GitHub({ userAgent: 'heihub-skill-importer' });
     this.userId = userId;
   }
 
@@ -100,23 +101,29 @@ export class SkillImporter {
         zipHash,
       );
 
-      // 3. Check if name already exists for this user
+      // 3. If a skill with this name already exists, update it (re-upload replaces)
       const existingByName = await this.skillModel.findByName(manifest.name);
-      if (existingByName) {
-        throw new SkillImportError(`Skill with name "${manifest.name}" already exists`, 'CONFLICT');
-      }
+      const identifier = existingByName?.identifier || `user.${nanoid(12)}`;
+      log('importFromZip: identifier=%s existing=%s', identifier, Boolean(existingByName));
 
-      // 4. Store resource files
       const resourceIds = zipHash
         ? await this.resourceService.storeResources(zipHash, resources)
         : {};
       log('importFromZip: stored resources=%o', resourceIds);
 
-      // 5. Generate identifier
-      const identifier = `user.${nanoid(12)}`;
-      log('importFromZip: generated identifier=%s', identifier);
+      if (existingByName) {
+        const skill = await this.skillModel.update(existingByName.id, {
+          content,
+          description: manifest.description,
+          manifest,
+          name: manifest.name,
+          resources: resourceIds,
+          zipFileHash: zipHash,
+        });
+        log('importFromZip: updated skill id=%s', skill.id);
+        return { skill, status: 'updated' };
+      }
 
-      // 6. Create skill record
       const skill = await this.skillModel.create({
         content,
         description: manifest.description,
@@ -136,14 +143,20 @@ export class SkillImporter {
   }
 
   /**
-   * Import skill from GitHub repository
-   * @param input - GitHub repository info
-   * @returns SkillImportResult with status: 'created' | 'updated' | 'unchanged'
+   * Import one or more skills from a GitHub repository.
+   * A subdirectory URL imports that skill only; a repo URL imports every top-level SKILL.md.
    */
   async importFromGitHub(input: ImportGitHubInput): Promise<SkillImportResult> {
+    const results = await this.importGitHubSkills(input);
+    if (results.length === 0) {
+      throw new SkillImportError('SKILL.md not found in repository', 'NOT_FOUND');
+    }
+    return results[0];
+  }
+
+  async importGitHubSkills(input: ImportGitHubInput): Promise<SkillImportResult[]> {
     log('importFromGitHub: starting with gitUrl=%s, branch=%s', input.gitUrl, input.branch);
 
-    // 1. Parse GitHub URL
     let repoInfo;
     try {
       repoInfo = this.github.parseRepoUrl(input.gitUrl, input.branch);
@@ -156,7 +169,11 @@ export class SkillImporter {
       throw error;
     }
 
-    // 2. Download repository ZIP
+    const commitSha = await this.github.resolveCommitSha(repoInfo);
+    if (commitSha) {
+      repoInfo = { ...repoInfo, commitSha };
+    }
+
     let zipBuffer;
     try {
       log('importFromGitHub: downloading repository ZIP...');
@@ -173,27 +190,72 @@ export class SkillImporter {
       );
     }
 
-    // 3. Parse ZIP package (pass basePath for subdirectory imports, repack to save only skill files)
-    log('importFromGitHub: parsing ZIP package with basePath=%s', repoInfo.path);
-    const { manifest, content, resources, zipHash, skillZipBuffer } =
-      await this.parser.parseZipPackage(zipBuffer, {
-        basePath: repoInfo.path,
-        repackSkillZip: true,
-      });
-    log(
-      'importFromGitHub: parsed manifest=%o, resources count=%d, zipHash=%s, skillZipSize=%d',
-      manifest,
-      resources.size,
-      zipHash,
-      skillZipBuffer?.length ?? 0,
-    );
+    const parsedSkills = await this.parser.parseZipPackageAll(zipBuffer, {
+      basePath: repoInfo.path,
+      repackSkillZip: true,
+    });
+    log('importFromGitHub: parsed %d skill(s)', parsedSkills.length);
 
-    // 4. Generate identifier (use GitHub info for uniqueness, include path for subdirectory imports)
+    if (parsedSkills.length === 0) {
+      throw new SkillImportError('SKILL.md not found in repository', 'NOT_FOUND');
+    }
+
+    const results: SkillImportResult[] = [];
+    for (const parsed of parsedSkills) {
+      results.push(
+        await this.upsertGitHubSkill({
+          commitSha,
+          gitRef: repoInfo.branch,
+          gitUrl: input.gitUrl,
+          parsed,
+          repoInfo: {
+            ...repoInfo,
+            path: parsed.skillDir || repoInfo.path,
+          },
+        }),
+      );
+    }
+    return results;
+  }
+
+  /**
+   * Re-import a skill from the GitHub URL stored on its manifest.
+   */
+  async refreshFromSource(skillId: string): Promise<SkillImportResult> {
+    const skill = await this.skillModel.findById(skillId);
+    if (!skill) {
+      throw new SkillImportError('Skill not found', 'NOT_FOUND');
+    }
+
+    const sourceUrl =
+      typeof skill.manifest?.sourceUrl === 'string' ? skill.manifest.sourceUrl : undefined;
+    if (!sourceUrl?.includes('github.com')) {
+      throw new SkillImportError('Skill has no GitHub source to refresh from', 'INVALID_URL');
+    }
+
+    return this.importFromGitHub({ gitUrl: sourceUrl });
+  }
+
+  private async upsertGitHubSkill(input: {
+    commitSha?: string;
+    gitRef: string;
+    gitUrl: string;
+    parsed: {
+      content: string;
+      manifest: SkillManifest;
+      resources: Map<string, Buffer>;
+      skillDir?: string;
+      skillZipBuffer?: Buffer;
+      zipHash?: string;
+    };
+    repoInfo: GitHubRepoInfo;
+  }): Promise<SkillImportResult> {
+    const { parsed, repoInfo, gitUrl, commitSha, gitRef } = input;
+    const { manifest, content, resources, zipHash, skillZipBuffer } = parsed;
+
     const identifier = this.github.generateIdentifier(repoInfo);
     log('importFromGitHub: identifier=%s', identifier);
 
-    // 5. Check for existing skill with same zipHash (deduplication)
-    // Also re-import if content is missing (e.g. from a previous buggy import)
     const existing = await this.skillModel.findByIdentifier(identifier);
     if (existing && existing.zipFileHash === zipHash && existing.content != null) {
       log(
@@ -204,28 +266,29 @@ export class SkillImporter {
       return { skill: existing, status: 'unchanged' };
     }
 
-    // 6. Store resource files (only if skill is new or changed)
     log('importFromGitHub: storing %d resources...', resources.size);
     const resourceIds = zipHash
       ? await this.resourceService.storeResources(zipHash, resources)
       : {};
     log('importFromGitHub: stored resources=%o', resourceIds);
 
-    // 7. Build manifest with repository info
+    const sourceUrl = parsed.skillDir
+      ? `https://github.com/${repoInfo.owner}/${repoInfo.repo}/tree/${gitRef}/${parsed.skillDir}`
+      : gitUrl;
+
     const fullManifest: SkillManifest = {
       ...manifest,
+      ...(commitSha ? { commitSha } : {}),
+      gitRef,
       repository: `https://github.com/${repoInfo.owner}/${repoInfo.repo}`,
-      sourceUrl: input.gitUrl,
+      sourceUrl,
     };
 
-    // 8. Upload ZIP file to S3 and create globalFiles record (for zipFileHash foreign key)
-    // Use skillZipBuffer (repacked skill-only ZIP) instead of full repo zipBuffer
     let zipFileHash: string | undefined;
-    const zipToUpload = skillZipBuffer ?? zipBuffer;
+    const zipToUpload = skillZipBuffer;
     if (zipHash && zipToUpload) {
       const zipKey = `skills/zip/${zipHash}.zip`;
       await this.fileService.uploadBuffer(zipKey, zipToUpload, 'application/zip');
-      // Use createGlobalFile directly - no need to create then delete user file record
       await this.fileService.createGlobalFile({
         fileHash: zipHash,
         fileType: 'application/zip',
@@ -238,16 +301,9 @@ export class SkillImporter {
         url: zipKey,
       });
       zipFileHash = zipHash;
-      log(
-        'importFromGitHub: uploaded ZIP file, hash=%s, size=%d bytes',
-        zipFileHash,
-        zipToUpload.length,
-      );
     }
 
-    // 9. Update existing skill or create new
     if (existing) {
-      log('importFromGitHub: skill exists but content changed, updating id=%s', existing.id);
       const skill = await this.skillModel.update(existing.id, {
         content,
         description: manifest.description,
@@ -256,15 +312,12 @@ export class SkillImporter {
         resources: resourceIds,
         zipFileHash,
       });
-      log('importFromGitHub: updated skill id=%s', skill.id);
       return { skill, status: 'updated' };
     }
 
-    // 10. Create new skill record
-    log('importFromGitHub: creating new skill...');
     const skill = await this.skillModel.create({
       content,
-      description: (manifest as any).description,
+      description: manifest.description,
       identifier,
       manifest: fullManifest,
       name: manifest.name,
@@ -272,7 +325,6 @@ export class SkillImporter {
       source: 'user', // [enterprise-fork] GitHub 导入进组织目录，和手写/ZIP 一样走 Custom 列表
       zipFileHash,
     });
-    log('importFromGitHub: created skill id=%s', skill.id);
     return { skill, status: 'created' };
   }
 

@@ -102,6 +102,7 @@ jobs:
           ENTERPRISE_ADMIN_EMAIL: zsbgnw@gmail.com
           AZURE_STORAGE_CONNECTION_STRING: ${{ secrets.AZURE_STORAGE_CONNECTION_STRING }}
           AZURE_STORAGE_CONTAINER: ${{ secrets.AZURE_STORAGE_CONTAINER }}
+          SKILL_GITHUB_TOKEN: ${{ secrets.SKILL_GITHUB_TOKEN }}
           IMAGE_TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.skip_build && inputs.image_tag || github.sha }}
         run: |
           set -euo pipefail
@@ -134,6 +135,10 @@ jobs:
             fi
             if [ -n "${AZURE_STORAGE_CONTAINER:-}" ]; then
               ENV_ARGS+=("AZURE_STORAGE_CONTAINER=$AZURE_STORAGE_CONTAINER")
+            fi
+            if [ -n "${SKILL_GITHUB_TOKEN:-}" ]; then
+              SECRET_ARGS+=("skill-github-token=$SKILL_GITHUB_TOKEN")
+              ENV_ARGS+=("SKILL_GITHUB_TOKEN=secretref:skill-github-token")
             fi
             if [ "${#SECRET_ARGS[@]}" -gt 0 ]; then
               az containerapp secret set \

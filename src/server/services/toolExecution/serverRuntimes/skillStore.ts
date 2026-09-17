@@ -40,8 +40,15 @@ class SkillStoreServerRuntimeService implements SkillStoreRuntimeService {
 
   importFromGitHub = async (gitUrl: string): Promise<SkillImportServiceResult> => {
     this.assertAdmin();
-    const result = await this.importer.importFromGitHub({ gitUrl });
-    return { skill: { id: result.skill.id, name: result.skill.name }, status: result.status };
+    const result = await this.importer.importGitHubSkills({ gitUrl });
+    const first = result[0];
+    if (!first) {
+      throw new Error('SKILL.md not found in repository');
+    }
+    return {
+      skill: { id: first.skill.id, name: result.map((item) => item.skill.name).join(', ') },
+      status: first.status,
+    };
   };
 
   importFromUrl = async (url: string): Promise<SkillImportServiceResult> => {

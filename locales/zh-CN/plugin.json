@@ -614,6 +614,8 @@
   "store.actions.detail": "详情",
   "store.actions.install": "安装",
   "store.actions.manifest": "编辑安装文件",
+  "store.actions.refresh": "从源刷新",
+  "store.actions.refreshSuccess": "已从源刷新技能",
   "store.actions.settings": "设置",
   "store.actions.uninstall": "卸载",
   "store.communityPlugin": "三方社区",

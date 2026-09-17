@@ -18,6 +18,7 @@ describe('GitHub', () => {
       expect(result).toEqual({
         branch: 'main',
         owner: 'lobehub',
+        refKind: 'branch',
         repo: 'lobe-chat',
       });
     });
@@ -27,6 +28,7 @@ describe('GitHub', () => {
       expect(result).toEqual({
         branch: 'develop',
         owner: 'lobehub',
+        refKind: 'branch',
         repo: 'lobe-chat',
       });
     });
@@ -39,6 +41,7 @@ describe('GitHub', () => {
         branch: 'feature',
         owner: 'lobehub',
         path: 'new-ui/src/components',
+        refKind: 'branch',
         repo: 'lobe-chat',
       });
     });
@@ -53,6 +56,7 @@ describe('GitHub', () => {
         branch: 'main',
         owner: 'openclaw',
         path: 'skills/skill-creator',
+        refKind: 'branch',
         repo: 'openclaw',
       });
     });
@@ -65,6 +69,7 @@ describe('GitHub', () => {
         branch: 'develop',
         owner: 'lobehub',
         path: 'agents/coding/python-expert',
+        refKind: 'branch',
         repo: 'skills',
       });
     });
@@ -74,6 +79,7 @@ describe('GitHub', () => {
       expect(result).toEqual({
         branch: 'main',
         owner: 'lobehub',
+        refKind: 'branch',
         repo: 'lobe-chat',
       });
       expect(result.path).toBeUndefined();
@@ -87,6 +93,7 @@ describe('GitHub', () => {
         branch: 'main',
         owner: 'kepano',
         path: 'skills/json-canvas',
+        refKind: 'branch',
         repo: 'obsidian-skills',
       });
     });
@@ -96,6 +103,7 @@ describe('GitHub', () => {
       expect(result).toEqual({
         branch: 'main',
         owner: 'owner',
+        refKind: 'branch',
         repo: 'repo',
       });
       expect(result.path).toBeUndefined();
@@ -109,6 +117,7 @@ describe('GitHub', () => {
         branch: 'main',
         owner: 'anthropics',
         path: 'skills/pptx',
+        refKind: 'branch',
         repo: 'skills',
       });
     });
@@ -118,6 +127,7 @@ describe('GitHub', () => {
       expect(result).toEqual({
         branch: 'main',
         owner: 'lobehub',
+        refKind: 'branch',
         repo: 'lobe-chat',
       });
     });
@@ -127,8 +137,38 @@ describe('GitHub', () => {
       expect(result).toEqual({
         branch: 'main',
         owner: 'lobehub',
+        refKind: 'branch',
         repo: 'lobe-chat',
       });
+    });
+
+    it('should parse a commit URL', () => {
+      const result = gh.parseRepoUrl(
+        'https://github.com/lobehub/lobe-chat/commit/0123456789abcdef0123456789abcdef01234567',
+      );
+      expect(result).toEqual({
+        branch: '0123456789abcdef0123456789abcdef01234567',
+        owner: 'lobehub',
+        refKind: 'commit',
+        repo: 'lobe-chat',
+      });
+    });
+
+    it('should parse a release tag URL', () => {
+      const result = gh.parseRepoUrl('https://github.com/lobehub/lobe-chat/releases/tag/v1.2.3');
+      expect(result).toEqual({
+        branch: 'v1.2.3',
+        owner: 'lobehub',
+        refKind: 'tag',
+        repo: 'lobe-chat',
+      });
+    });
+
+    it('should treat a 40-char hex tree ref as a commit', () => {
+      const sha = 'abcdefabcdefabcdefabcdefabcdefabcdefabcd';
+      const result = gh.parseRepoUrl(`https://github.com/lobehub/lobe-chat/tree/${sha}`);
+      expect(result.refKind).toBe('commit');
+      expect(result.branch).toBe(sha);
     });
 
     it('should parse shorthand format (owner/repo)', () => {
@@ -136,6 +176,7 @@ describe('GitHub', () => {
       expect(result).toEqual({
         branch: 'main',
         owner: 'lobehub',
+        refKind: 'branch',
         repo: 'lobe-chat',
       });
     });
@@ -145,6 +186,7 @@ describe('GitHub', () => {
       expect(result).toEqual({
         branch: 'dev',
         owner: 'lobehub',
+        refKind: 'branch',
         repo: 'lobe-chat',
       });
     });
@@ -154,6 +196,7 @@ describe('GitHub', () => {
       expect(result).toEqual({
         branch: 'main',
         owner: 'owner-name',
+        refKind: 'branch',
         repo: 'repo.name-v2',
       });
     });
@@ -186,6 +229,28 @@ describe('GitHub', () => {
       expect(url).toBe(
         'https://github.com/lobehub/lobe-chat/archive/refs/heads/feature/new-ui.zip',
       );
+    });
+
+    it('should pin a resolved commit SHA', () => {
+      const url = gh.buildRepoZipUrl({
+        branch: 'main',
+        commitSha: '0123456789abcdef0123456789abcdef01234567',
+        owner: 'lobehub',
+        repo: 'lobe-chat',
+      });
+      expect(url).toBe(
+        'https://github.com/lobehub/lobe-chat/archive/0123456789abcdef0123456789abcdef01234567.zip',
+      );
+    });
+
+    it('should use refs/tags for tag refs', () => {
+      const url = gh.buildRepoZipUrl({
+        branch: 'v1.2.3',
+        owner: 'lobehub',
+        refKind: 'tag',
+        repo: 'lobe-chat',
+      });
+      expect(url).toBe('https://github.com/lobehub/lobe-chat/archive/refs/tags/v1.2.3.zip');
     });
   });
 
@@ -225,6 +290,7 @@ describe('GitHub', () => {
 
     afterEach(() => {
       vi.unstubAllGlobals();
+      vi.unstubAllEnvs();
     });
 
     it('should download repository ZIP successfully', async () => {
@@ -300,6 +366,28 @@ describe('GitHub', () => {
       expect(mockFetch).toHaveBeenCalledWith(expect.any(String), {
         headers: {
           'User-Agent': 'CustomAgent/1.0',
+        },
+      });
+    });
+
+    it('should send a bearer token when SKILL_GITHUB_TOKEN is set', async () => {
+      vi.stubEnv('SKILL_GITHUB_TOKEN', 'ghp_test_token');
+      const mockBuffer = new ArrayBuffer(100);
+      mockFetch.mockResolvedValueOnce({
+        arrayBuffer: () => Promise.resolve(mockBuffer),
+        ok: true,
+      });
+
+      await gh.downloadRepoZip({
+        branch: 'main',
+        owner: 'lobehub',
+        repo: 'private-skills',
+      });
+
+      expect(mockFetch).toHaveBeenCalledWith(expect.any(String), {
+        headers: {
+          'Authorization': 'Bearer ghp_test_token',
+          'User-Agent': 'heihub',
         },
       });
     });
@@ -387,6 +475,61 @@ describe('GitHub', () => {
       });
 
       expect(result).toBeInstanceOf(Buffer);
+    });
+  });
+
+  describe('resolveCommitSha', () => {
+    const gh = new GitHub();
+    const mockFetch = vi.fn();
+
+    beforeEach(() => {
+      vi.stubGlobal('fetch', mockFetch);
+    });
+
+    afterEach(() => {
+      vi.unstubAllGlobals();
+    });
+
+    it('should return a pinned SHA without calling the API', async () => {
+      const sha = '0123456789abcdef0123456789abcdef01234567';
+      const result = await gh.resolveCommitSha({
+        branch: 'main',
+        commitSha: sha,
+        owner: 'lobehub',
+        repo: 'lobe-chat',
+      });
+      expect(result).toBe(sha);
+      expect(mockFetch).not.toHaveBeenCalled();
+    });
+
+    it('should resolve a branch via the commits API', async () => {
+      const sha = 'abcdefabcdefabcdefabcdefabcdefabcdefabcd';
+      mockFetch.mockResolvedValueOnce({
+        json: () => Promise.resolve({ sha }),
+        ok: true,
+      });
+
+      const result = await gh.resolveCommitSha({
+        branch: 'main',
+        owner: 'lobehub',
+        repo: 'lobe-chat',
+      });
+
+      expect(result).toBe(sha);
+      expect(mockFetch).toHaveBeenCalledWith(
+        'https://api.github.com/repos/lobehub/lobe-chat/commits/main',
+        expect.objectContaining({ headers: expect.any(Object) }),
+      );
+    });
+
+    it('should return undefined when the API fails', async () => {
+      mockFetch.mockResolvedValueOnce({ ok: false, status: 404 });
+      const result = await gh.resolveCommitSha({
+        branch: 'missing',
+        owner: 'lobehub',
+        repo: 'lobe-chat',
+      });
+      expect(result).toBeUndefined();
     });
   });
 

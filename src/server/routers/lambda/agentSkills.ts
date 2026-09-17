@@ -12,6 +12,8 @@ import { FileService } from '@/server/services/file';
 import {
   SkillImporter,
   SkillImportError,
+  SkillManifestError,
+  SkillParseError,
   SkillResourceError,
   SkillResourceService,
 } from '@/server/services/skill';
@@ -48,6 +50,12 @@ const handleSkillImportError = (error: unknown): never => {
   if (error instanceof SkillImportError) {
     throw new TRPCError({
       code: skillImportErrorToTRPCCode(error.code),
+      message: error.message,
+    });
+  }
+  if (error instanceof SkillManifestError || error instanceof SkillParseError) {
+    throw new TRPCError({
+      code: 'BAD_REQUEST',
       message: error.message,
     });
   }
@@ -160,6 +168,32 @@ export const agentSkillsRouter = router({
     .mutation(async ({ ctx, input }) => {
       try {
         return await ctx.skillImporter.importFromGitHub(input);
+      } catch (error) {
+        handleSkillImportError(error);
+      }
+    }),
+
+  importGitHubSkills: skillAdminProcedure
+    .input(
+      z.object({
+        branch: z.string().optional(),
+        gitUrl: z.string().url(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      try {
+        const results = await ctx.skillImporter.importGitHubSkills(input);
+        return { results };
+      } catch (error) {
+        handleSkillImportError(error);
+      }
+    }),
+
+  refreshFromSource: skillAdminProcedure
+    .input(z.object({ id: z.string() }))
+    .mutation(async ({ ctx, input }) => {
+      try {
+        return await ctx.skillImporter.refreshFromSource(input.id);
       } catch (error) {
         handleSkillImportError(error);
       }
