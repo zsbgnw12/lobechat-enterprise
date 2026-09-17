@@ -9,6 +9,7 @@ import { lazy, memo, Suspense, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import SkillAvatar from '@/components/SkillAvatar';
+import { useIsAdmin } from '@/hooks/useEnterpriseRole';
 import { agentSkillService } from '@/services/skill';
 import { useToolStore } from '@/store/tool';
 import { type SkillListItem } from '@/types/index';
@@ -49,6 +50,9 @@ const AgentSkillItem = memo<AgentSkillItemProps>(({ skill }) => {
   const [editOpen, setEditOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const deleteAgentSkill = useToolStore((s) => s.deleteAgentSkill);
+  // [enterprise-fork] 技能目录是组织级的，改/删走 skillAdminProcedure。
+  // 普通用户不给入口，否则点下去只会吃一个 FORBIDDEN。
+  const isAdmin = useIsAdmin();
 
   const handleDownload = async () => {
     if (!skill.zipFileHash) return;
@@ -100,39 +104,45 @@ const AgentSkillItem = memo<AgentSkillItemProps>(({ skill }) => {
             )}
           </Flexbox>
           <Flexbox horizontal>
-            {skill.source === 'user' && (
+            {isAdmin && skill.source === 'user' && (
               <ActionIcon
                 icon={PackageSearch}
                 title={t('store.actions.manifest')}
                 onClick={() => setEditOpen(true)}
               />
             )}
-            <DropdownMenu
-              nativeButton={false}
-              placement="bottomRight"
-              items={[
-                ...(skill.zipFileHash
-                  ? [
-                      {
-                        icon: <Icon icon={DownloadIcon} />,
-                        key: 'download',
-                        label: tc('download'),
-                        onClick: handleDownload,
-                      },
-                      { type: 'divider' as const },
-                    ]
-                  : []),
-                {
-                  danger: true,
-                  icon: <Icon icon={Trash2} />,
-                  key: 'uninstall',
-                  label: t('store.actions.uninstall'),
-                  onClick: handleDelete,
-                },
-              ]}
-            >
-              <ActionIcon icon={MoreVerticalIcon} loading={loading} />
-            </DropdownMenu>
+            {(skill.zipFileHash || isAdmin) && (
+              <DropdownMenu
+                nativeButton={false}
+                placement="bottomRight"
+                items={[
+                  ...(skill.zipFileHash
+                    ? [
+                        {
+                          icon: <Icon icon={DownloadIcon} />,
+                          key: 'download',
+                          label: tc('download'),
+                          onClick: handleDownload,
+                        },
+                      ]
+                    : []),
+                  ...(isAdmin
+                    ? [
+                        ...(skill.zipFileHash ? [{ type: 'divider' as const }] : []),
+                        {
+                          danger: true,
+                          icon: <Icon icon={Trash2} />,
+                          key: 'uninstall',
+                          label: t('store.actions.uninstall'),
+                          onClick: handleDelete,
+                        },
+                      ]
+                    : []),
+                ]}
+              >
+                <ActionIcon icon={MoreVerticalIcon} loading={loading} />
+              </DropdownMenu>
+            )}
           </Flexbox>
         </Block>
       </Flexbox>
@@ -149,7 +159,7 @@ const AgentSkillItem = memo<AgentSkillItemProps>(({ skill }) => {
           <AgentSkillDetail skillId={skill.id} />
         </Suspense>
       </Modal>
-      {skill.source === 'user' && (
+      {isAdmin && skill.source === 'user' && (
         <Suspense>
           <AgentSkillEdit open={editOpen} skillId={skill.id} onClose={() => setEditOpen(false)} />
         </Suspense>
