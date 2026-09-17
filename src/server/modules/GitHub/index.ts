@@ -2,14 +2,20 @@ import debug from 'debug';
 
 const log = debug('lobe-chat:module:github');
 
+const FULL_COMMIT_SHA = /^[0-9a-f]{40}$/i;
+
+export type GitHubRefKind = 'branch' | 'tag' | 'commit';
+
 export interface GitHubRepoInfo {
   branch: string;
+  commitSha?: string;
   owner: string;
   /**
    * Subdirectory path within the repository (e.g., 'skills/skill-creator')
    * Extracted from URLs like: https://github.com/owner/repo/tree/branch/path/to/dir
    */
   path?: string;
+  refKind?: GitHubRefKind;
   repo: string;
 }
 
@@ -19,24 +25,25 @@ export interface GitHubRawFileInfo extends GitHubRepoInfo {
 
 export class GitHub {
   private readonly userAgent: string;
+  private readonly token?: string;
 
-  constructor(options?: { userAgent?: string }) {
-    this.userAgent = options?.userAgent || 'Enterprise AI';
+  constructor(options?: { token?: string; userAgent?: string }) {
+    this.userAgent = options?.userAgent || 'heihub';
+    this.token = options?.token;
   }
 
   /**
-   * Parse GitHub URL to extract owner, repo, branch, and optional path
-   * Supports multiple formats:
+   * Parse GitHub URL to extract owner, repo, ref, and optional path
+   * Supports:
    * - https://github.com/owner/repo
    * - https://github.com/owner/repo/tree/branch
    * - https://github.com/owner/repo/tree/branch/path/to/dir
    * - https://github.com/owner/repo/blob/branch/path/to/file.md
+   * - https://github.com/owner/repo/commit/{sha}
+   * - https://github.com/owner/repo/releases/tag/{tag}
    * - github.com/owner/repo
    * - owner/repo (shorthand)
    * - https://github.com/owner/repo.git
-   *
-   * When a /blob/ URL pointing to a file is provided, the file name is stripped
-   * and the parent directory is used as the path.
    */
   parseRepoUrl(url: string, defaultBranch = 'main'): GitHubRepoInfo {
     log('parseRepoUrl: input url=%s, defaultBranch=%s', url, defaultBranch);
@@ -44,14 +51,43 @@ export class GitHub {
     // Handle shorthand format: owner/repo
     if (/^[\w.-]+\/[\w.-]+$/.test(url)) {
       const [owner, repo] = url.split('/');
-      const result = { branch: defaultBranch, owner, repo };
+      const result: GitHubRepoInfo = { branch: defaultBranch, owner, refKind: 'branch', repo };
       log('parseRepoUrl: matched shorthand format, result=%o', result);
       return result;
     }
 
-    // Handle full URL formats
+    const stripped = url.replace(/\.git$/, '');
+
+    const commitMatch = stripped.match(
+      /^(?:https?:\/\/)?github\.com\/([^/]+)\/([^/]+)\/commit\/([0-9a-f]{7,40})\/?$/i,
+    );
+    if (commitMatch) {
+      const result: GitHubRepoInfo = {
+        branch: commitMatch[3],
+        owner: commitMatch[1],
+        refKind: 'commit',
+        repo: commitMatch[2],
+      };
+      log('parseRepoUrl: matched commit URL, result=%o', result);
+      return result;
+    }
+
+    const tagMatch = stripped.match(
+      /^(?:https?:\/\/)?github\.com\/([^/]+)\/([^/]+)\/releases\/tag\/([^/]+)\/?$/,
+    );
+    if (tagMatch) {
+      const result: GitHubRepoInfo = {
+        branch: decodeURIComponent(tagMatch[3]),
+        owner: tagMatch[1],
+        refKind: 'tag',
+        repo: tagMatch[2],
+      };
+      log('parseRepoUrl: matched release tag URL, result=%o', result);
+      return result;
+    }
+
     // Capture: owner, repo, type (tree/blob), branch, and optional path after branch
-    const match = url.match(
+    const match = stripped.match(
       /^(?:https?:\/\/)?github\.com\/([^/]+)\/([^/]+)(?:\/(tree|blob)\/([^/]+)(?:\/(.+))?)?$/,
     );
 
@@ -61,9 +97,11 @@ export class GitHub {
     }
 
     const [, owner, repo, urlType, branch, rawPath] = match;
+    const ref = branch || defaultBranch;
     const result: GitHubRepoInfo = {
-      branch: branch || defaultBranch,
+      branch: ref,
       owner,
+      refKind: FULL_COMMIT_SHA.test(ref) ? 'commit' : 'branch',
       repo: repo.replace(/\.git$/, ''),
     };
 
@@ -95,9 +133,6 @@ export class GitHub {
    * Format: {owner}-{repo}-{skillName}
    * The skill name is the last segment of the path (directory name).
    * All parts are lowercased and joined with hyphens.
-   *
-   * @param info - Repository information
-   * @returns Skill identifier string
    */
   generateIdentifier(info: GitHubRepoInfo): string {
     const parts = [
@@ -128,17 +163,59 @@ export class GitHub {
   }
 
   /**
-   * Build the ZIP download URL for a GitHub repository
+   * Build the ZIP download URL for a GitHub repository.
+   * Prefers a resolved commit SHA so the archive is pinned.
    */
   buildRepoZipUrl(info: GitHubRepoInfo): string {
-    return `https://github.com/${info.owner}/${info.repo}/archive/refs/heads/${info.branch}.zip`;
+    const { owner, repo } = info;
+    if (info.commitSha) {
+      return `https://github.com/${owner}/${repo}/archive/${info.commitSha}.zip`;
+    }
+    if (info.refKind === 'tag') {
+      return `https://github.com/${owner}/${repo}/archive/refs/tags/${info.branch}.zip`;
+    }
+    if (info.refKind === 'commit' || FULL_COMMIT_SHA.test(info.branch)) {
+      return `https://github.com/${owner}/${repo}/archive/${info.branch}.zip`;
+    }
+    return `https://github.com/${owner}/${repo}/archive/refs/heads/${info.branch}.zip`;
   }
 
   /**
    * Build the raw file URL for a GitHub repository
    */
   buildRawFileUrl(info: GitHubRawFileInfo): string {
-    return `https://raw.githubusercontent.com/${info.owner}/${info.repo}/${info.branch}/${info.filePath}`;
+    const ref = info.commitSha || info.branch;
+    return `https://raw.githubusercontent.com/${info.owner}/${info.repo}/${ref}/${info.filePath}`;
+  }
+
+  /**
+   * Resolve a branch / tag / SHA to a full commit SHA via the GitHub API.
+   * Returns undefined when the API is unreachable so callers can still
+   * fall back to downloading the named ref.
+   */
+  async resolveCommitSha(info: GitHubRepoInfo): Promise<string | undefined> {
+    if (info.commitSha) return info.commitSha;
+    if (FULL_COMMIT_SHA.test(info.branch)) return info.branch.toLowerCase();
+
+    const ref = encodeURIComponent(info.branch);
+    const apiUrl = `https://api.github.com/repos/${info.owner}/${info.repo}/commits/${ref}`;
+    log('resolveCommitSha: fetching url=%s', apiUrl);
+
+    try {
+      const response = await fetch(apiUrl, { headers: this.requestHeaders() });
+      if (!response.ok) {
+        log('resolveCommitSha: status=%d', response.status);
+        return undefined;
+      }
+      const body = (await response.json()) as { sha?: string };
+      if (typeof body.sha === 'string' && FULL_COMMIT_SHA.test(body.sha)) {
+        return body.sha.toLowerCase();
+      }
+      return undefined;
+    } catch (error) {
+      log('resolveCommitSha: failed %s', (error as Error).message);
+      return undefined;
+    }
   }
 
   /**
@@ -149,9 +226,7 @@ export class GitHub {
     log('downloadRepoZip: fetching url=%s', zipUrl);
 
     const response = await fetch(zipUrl, {
-      headers: {
-        'User-Agent': this.userAgent,
-      },
+      headers: this.requestHeaders(),
     });
 
     log('downloadRepoZip: response status=%d, ok=%s', response.status, response.ok);
@@ -160,7 +235,7 @@ export class GitHub {
       if (response.status === 404) {
         log('downloadRepoZip: repository not found');
         throw new GitHubNotFoundError(
-          `Repository not found: ${info.owner}/${info.repo}@${info.branch}`,
+          `Repository not found: ${info.owner}/${info.repo}@${info.commitSha || info.branch}`,
         );
       }
       log('downloadRepoZip: download failed with status=%d', response.status);
@@ -182,9 +257,7 @@ export class GitHub {
     const rawUrl = this.buildRawFileUrl(info);
 
     const response = await fetch(rawUrl, {
-      headers: {
-        'User-Agent': this.userAgent,
-      },
+      headers: this.requestHeaders(),
     });
 
     if (!response.ok) {
@@ -208,9 +281,7 @@ export class GitHub {
     const rawUrl = this.buildRawFileUrl(info);
 
     const response = await fetch(rawUrl, {
-      headers: {
-        'User-Agent': this.userAgent,
-      },
+      headers: this.requestHeaders(),
     });
 
     if (!response.ok) {
@@ -226,6 +297,17 @@ export class GitHub {
 
     const arrayBuffer = await response.arrayBuffer();
     return Buffer.from(arrayBuffer);
+  }
+
+  private requestHeaders(): Record<string, string> {
+    const headers: Record<string, string> = {
+      'User-Agent': this.userAgent,
+    };
+    const token = this.token ?? process.env.SKILL_GITHUB_TOKEN;
+    if (token) {
+      headers.Authorization = `Bearer ${token}`;
+    }
+    return headers;
   }
 }
 

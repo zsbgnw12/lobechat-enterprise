@@ -178,6 +178,18 @@ description: test
 
       expect(() => parser.validateManifest(data)).toThrow(SkillManifestError);
     });
+
+    it('should reject skill names that are not agentskills-compliant', () => {
+      expect(() =>
+        parser.validateManifest({ description: 'A test skill', name: 'GitHub Skill' }),
+      ).toThrow(SkillManifestError);
+    });
+
+    it('should reject descriptions longer than 1024 characters', () => {
+      expect(() =>
+        parser.validateManifest({ description: 'x'.repeat(1025), name: 'test-skill' }),
+      ).toThrow(SkillManifestError);
+    });
   });
 
   describe('parseZipPackage', () => {
@@ -669,6 +681,107 @@ Root content`;
       const unzipped = await extractZip(result.skillZipBuffer!);
       expect(Object.keys(unzipped)).toContain('SKILL.md');
       expect(Object.keys(unzipped)).toContain('resource.txt');
+    });
+  });
+
+  describe('parseZipPackageAll', () => {
+    it('should import every top-level SKILL.md in a GitHub archive', async () => {
+      const skillA = `---
+name: skill-a
+description: First skill
+---
+A`;
+      const skillB = `---
+name: skill-b
+description: Second skill
+---
+B`;
+
+      const testFiles = {
+        'repo-main/skills/skill-a/SKILL.md': new TextEncoder().encode(skillA),
+        'repo-main/skills/skill-a/notes.md': new TextEncoder().encode('notes'),
+        'repo-main/skills/skill-b/SKILL.md': new TextEncoder().encode(skillB),
+      };
+
+      const zipped = await createZip(testFiles);
+      const results = await parser.parseZipPackageAll(Buffer.from(zipped), {
+        repackSkillZip: true,
+      });
+
+      expect(results.map((item) => item.manifest.name).sort()).toEqual(['skill-a', 'skill-b']);
+      expect(results.find((item) => item.manifest.name === 'skill-a')?.skillDir).toBe(
+        'skills/skill-a',
+      );
+      expect(
+        results.find((item) => item.manifest.name === 'skill-a')?.resources.has('notes.md'),
+      ).toBe(true);
+    });
+
+    it('should skip SKILL.md nested inside another skill', async () => {
+      const parent = `---
+name: parent-skill
+description: Parent
+---
+Parent`;
+      const nested = `---
+name: nested-skill
+description: Nested
+---
+Nested`;
+
+      const testFiles = {
+        'repo-main/skills/parent-skill/SKILL.md': new TextEncoder().encode(parent),
+        'repo-main/skills/parent-skill/examples/nested-skill/SKILL.md': new TextEncoder().encode(
+          nested,
+        ),
+      };
+
+      const zipped = await createZip(testFiles);
+      const results = await parser.parseZipPackageAll(Buffer.from(zipped));
+
+      expect(results).toHaveLength(1);
+      expect(results[0].manifest.name).toBe('parent-skill');
+    });
+
+    it('should honor basePath and return a single skill', async () => {
+      const skillMd = `---
+name: skill-creator
+description: A skill in deep subdirectory
+---
+Deep`;
+
+      const testFiles = {
+        'openclaw-main/skills/skill-creator/SKILL.md': new TextEncoder().encode(skillMd),
+        'openclaw-main/skills/other/SKILL.md': new TextEncoder().encode(
+          '---\nname: other\ndescription: other\n---\nOther',
+        ),
+      };
+
+      const zipped = await createZip(testFiles);
+      const results = await parser.parseZipPackageAll(Buffer.from(zipped), {
+        basePath: 'skills/skill-creator',
+      });
+
+      expect(results).toHaveLength(1);
+      expect(results[0].manifest.name).toBe('skill-creator');
+      expect(results[0].skillDir).toBe('skills/skill-creator');
+    });
+
+    it('should reject a SKILL.md whose name is not agentskills-compliant', async () => {
+      const skillMd = `---
+name: Invalid Name
+description: Not compliant
+---
+Nope`;
+
+      const testFiles = {
+        'SKILL.md': new TextEncoder().encode(skillMd),
+      };
+
+      const zipped = await createZip(testFiles);
+      await expect(parser.parseZipPackageAll(Buffer.from(zipped))).rejects.toThrow(
+        SkillManifestError,
+      );
     });
   });
 

@@ -83,8 +83,14 @@ export class AgentSkillsActionImpl {
 
   importAgentSkillFromGitHub = async (
     params: ImportGitHubInput,
-  ): Promise<SkillImportResult | undefined> => {
-    const result = await agentSkillService.importFromGitHub(params);
+  ): Promise<{ results: SkillImportResult[] } | undefined> => {
+    const result = await agentSkillService.importGitHubSkills(params);
+    await this.#get().refreshAgentSkills();
+    return result;
+  };
+
+  refreshAgentSkillFromSource = async (id: string): Promise<SkillImportResult | undefined> => {
+    const result = await agentSkillService.refreshFromSource(id);
     await this.#get().refreshAgentSkills();
     return result;
   };

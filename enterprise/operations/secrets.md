@@ -55,6 +55,7 @@
 | `GONGDAN_API_KEY` / `GONGDAN_SYNTHETIC_PASSWORD_PEPPER` | 同上表                                                                     |
 | `AZURE_STORAGE_CONNECTION_STRING`                       | 注入 ACA，打开 Azure Blob 文件存储。未配则生产仍是占位 S3                  |
 | `AZURE_STORAGE_CONTAINER`                               | 可选，Blob 容器名，缺省 `lobechat`                                         |
+| `SKILL_GITHUB_TOKEN`                                    | 可选 GitHub PAT。导入私有仓库技能、提高 API 限流。未配时公开仓库仍可导入   |
 
 ACR 的 admin 密码不在 Secrets 里，由工作流运行时 `az acr credential show` 临时取得。
 
@@ -82,6 +83,7 @@ ACR 的 admin 密码不在 Secrets 里，由工作流运行时 `az acr credentia
 | --------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `AZURE_STORAGE_CONNECTION_STRING` | 已接到 `deploy-aca.yml` 的 update 路径：若 GitHub Secret 有值，则以 `secretref:azure-storage-connection-string` 注入。**Secret 未配置时生产仍走占位 S3，ZIP / 附件技能会失败。** 等级：严重（连接串含账号密钥） |
 | `AZURE_STORAGE_CONTAINER`         | 可选 GitHub Secret，缺省代码侧为 `lobechat`                                                                                                                                                                     |
+| `SKILL_GITHUB_TOKEN`              | 可选。有值时以 `secretref:skill-github-token` 注入，供技能 GitHub 导入器带 PAT 拉仓库。未配置时只能导入公开仓库。建议 fine-grained PAT，只开目标仓库 `contents:read`。等级：高                                  |
 
 ---
 

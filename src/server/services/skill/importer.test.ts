@@ -28,6 +28,7 @@ const mockGitHubInstance = {
       return parts.join('-').toLowerCase();
     }),
   parseRepoUrl: vi.fn(),
+  resolveCommitSha: vi.fn().mockResolvedValue(undefined),
 };
 vi.mock('@/server/modules/GitHub', () => ({
   GitHub: vi.fn().mockImplementation(() => mockGitHubInstance),
@@ -48,6 +49,7 @@ vi.mock('@/server/modules/GitHub', () => ({
 const mockParserInstance = {
   parseSkillMd: vi.fn(),
   parseZipPackage: vi.fn(),
+  parseZipPackageAll: vi.fn(),
 };
 vi.mock('./parser', () => ({
   SkillParser: vi.fn().mockImplementation(() => mockParserInstance),
@@ -95,6 +97,12 @@ describe('SkillImporter', () => {
     await db.insert(users).values({ id: userId });
 
     importer = new SkillImporter(db, userId);
+
+    mockParserInstance.parseZipPackageAll.mockImplementation(async (buffer, options) => {
+      const one = await mockParserInstance.parseZipPackage(buffer, options);
+      return [one];
+    });
+    mockGitHubInstance.resolveCommitSha.mockResolvedValue(undefined);
   });
 
   afterEach(async () => {
@@ -300,7 +308,7 @@ describe('SkillImporter', () => {
       expect(Object.keys(dbSkill?.resources || {})).toHaveLength(2);
     });
 
-    it('should throw CONFLICT error when skill name already exists', async () => {
+    it('should update an existing skill when re-uploading a zip with the same name', async () => {
       const zipFileId = `zip-file-conflict-${Date.now()}`;
       const zipHash = `zip-hash-conflict-${Date.now()}`;
 
@@ -322,14 +330,12 @@ describe('SkillImporter', () => {
         userId,
       });
 
-      // First, create a skill with the same name
-      await importer.createUserSkill({
+      const existing = await importer.createUserSkill({
         content: '# Existing Skill',
         description: 'Already exists',
         name: 'Duplicate Name',
       });
 
-      // Now try to import a ZIP with the same name
       mockParserInstance.parseZipPackage.mockResolvedValue({
         content: '# New Skill from ZIP',
         manifest: { name: 'Duplicate Name', description: 'From ZIP' },
@@ -337,14 +343,10 @@ describe('SkillImporter', () => {
         zipHash: undefined,
       });
 
-      await expect(importer.importFromZip({ zipFileId })).rejects.toThrow(SkillImportError);
-
-      try {
-        await importer.importFromZip({ zipFileId });
-      } catch (e) {
-        expect((e as SkillImportError).code).toBe('CONFLICT');
-        expect((e as SkillImportError).message).toContain('Duplicate Name');
-      }
+      const result = await importer.importFromZip({ zipFileId });
+      expect(result.status).toBe('updated');
+      expect(result.skill.id).toBe(existing.id);
+      expect(result.skill.content).toBe('# New Skill from ZIP');
     });
   });
 
@@ -541,6 +543,7 @@ describe('SkillImporter', () => {
         content: '# Skill Content',
         manifest: { name: 'Global Only Skill', description: 'Test global files' },
         resources: new Map(),
+        skillZipBuffer: Buffer.from('mock-skill-zip'),
         zipHash,
       });
 
@@ -599,6 +602,7 @@ describe('SkillImporter', () => {
         content: '# Content',
         manifest: { name: 'Path Test Skill', description: 'Test path' },
         resources: new Map(),
+        skillZipBuffer: Buffer.from('mock-skill-zip'),
         zipHash,
       });
 
@@ -704,6 +708,7 @@ describe('SkillImporter', () => {
           ['readme.md', Buffer.from('# README')],
           ['docs/guide.md', Buffer.from('# Guide')],
         ]),
+        skillZipBuffer: Buffer.from('mock-skill-zip'),
         zipHash,
       });
 
@@ -775,6 +780,7 @@ describe('SkillImporter', () => {
         content: '# Original Content',
         manifest: { name: 'Update Skill', description: 'Version 1' },
         resources: new Map(),
+        skillZipBuffer: Buffer.from('mock-skill-zip-v1'),
         zipHash: 'hash-v1',
       });
 
@@ -792,6 +798,7 @@ describe('SkillImporter', () => {
         content: '# Updated Content',
         manifest: { name: 'Update Skill', description: 'Version 2' },
         resources: new Map(),
+        skillZipBuffer: Buffer.from('mock-skill-zip-v2'),
         zipHash: 'hash-v2',
       });
 
@@ -807,6 +814,109 @@ describe('SkillImporter', () => {
 
       // uploadBuffer should be called again for the new ZIP
       expect(mockUploadBuffer.mock.calls.length).toBe(uploadCountAfterFirst + 1);
+    });
+
+    it('should import every skill when the GitHub URL has no subdirectory', async () => {
+      mockGitHubInstance.parseRepoUrl.mockReturnValue({
+        branch: 'main',
+        owner: 'acme',
+        repo: 'ops-skills',
+      });
+      mockGitHubInstance.downloadRepoZip.mockResolvedValue(Buffer.from('mock-zip'));
+      mockParserInstance.parseZipPackageAll.mockResolvedValue([
+        {
+          content: '# Ticket',
+          manifest: { name: 'ticket-followup', description: 'Ticket SOP' },
+          resources: new Map(),
+          skillDir: 'skills/ticket-followup',
+          zipHash: `batch-a-${Date.now()}`,
+        },
+        {
+          content: '# Billing',
+          manifest: { name: 'billing-reply', description: 'Billing SOP' },
+          resources: new Map(),
+          skillDir: 'skills/billing-reply',
+          zipHash: `batch-b-${Date.now()}`,
+        },
+      ]);
+
+      const results = await importer.importGitHubSkills({
+        gitUrl: 'https://github.com/acme/ops-skills',
+      });
+
+      expect(results).toHaveLength(2);
+      expect(results.map((item) => item.skill.identifier).sort()).toEqual([
+        'acme-ops-skills-billing-reply',
+        'acme-ops-skills-ticket-followup',
+      ]);
+      expect(results.map((item) => item.skill.manifest.sourceUrl).sort()).toEqual([
+        'https://github.com/acme/ops-skills/tree/main/skills/billing-reply',
+        'https://github.com/acme/ops-skills/tree/main/skills/ticket-followup',
+      ]);
+    });
+
+    it('should persist the resolved commit SHA on the manifest', async () => {
+      const sha = '0123456789abcdef0123456789abcdef01234567';
+      mockGitHubInstance.parseRepoUrl.mockReturnValue({
+        branch: 'main',
+        owner: 'lobehub',
+        repo: 'skill-demo',
+      });
+      mockGitHubInstance.resolveCommitSha.mockResolvedValue(sha);
+      mockGitHubInstance.downloadRepoZip.mockResolvedValue(Buffer.from('mock-zip'));
+      mockParserInstance.parseZipPackage.mockResolvedValue({
+        content: '# pinned',
+        manifest: { name: 'pinned-skill', description: 'Pinned' },
+        resources: new Map(),
+        zipHash: `sha-hash-${Date.now()}`,
+      });
+
+      const result = await importer.importFromGitHub({
+        gitUrl: 'https://github.com/lobehub/skill-demo',
+      });
+
+      expect(result.skill.manifest).toMatchObject({
+        commitSha: sha,
+        gitRef: 'main',
+      });
+    });
+
+    it('should refresh a GitHub-imported skill from its stored sourceUrl', async () => {
+      mockGitHubInstance.parseRepoUrl.mockReturnValue({
+        branch: 'main',
+        owner: 'acme',
+        path: 'skills/ticket-followup',
+        repo: 'ops-skills',
+      });
+      mockGitHubInstance.downloadRepoZip.mockResolvedValue(Buffer.from('mock-zip'));
+      mockParserInstance.parseZipPackage.mockResolvedValue({
+        content: '# v1',
+        manifest: { name: 'ticket-followup', description: 'Ticket SOP' },
+        resources: new Map(),
+        skillDir: 'skills/ticket-followup',
+        zipHash: undefined,
+      });
+
+      const created = await importer.importFromGitHub({
+        gitUrl: 'https://github.com/acme/ops-skills/tree/main/skills/ticket-followup',
+      });
+      expect(created.status).toBe('created');
+
+      mockParserInstance.parseZipPackage.mockResolvedValue({
+        content: '# v2',
+        manifest: { name: 'ticket-followup', description: 'Ticket SOP' },
+        resources: new Map(),
+        skillDir: 'skills/ticket-followup',
+        zipHash: undefined,
+      });
+
+      const refreshed = await importer.refreshFromSource(created.skill.id);
+      expect(refreshed.status).toBe('updated');
+      expect(refreshed.skill.content).toBe('# v2');
+      expect(mockGitHubInstance.parseRepoUrl).toHaveBeenLastCalledWith(
+        'https://github.com/acme/ops-skills/tree/main/skills/ticket-followup',
+        undefined,
+      );
     });
   });
 

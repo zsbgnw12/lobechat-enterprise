@@ -12,13 +12,24 @@ export const skillManifestSchema = z
     // Author can be either a string or an object (for compatibility with market skills)
     author: z.union([z.string(), skillAuthorSchema]).optional(),
 
-    // Required: skill description
-    description: z.string().min(1, 'Skill description is required'),
+    // Pinned git commit when imported from GitHub
+    commitSha: z.string().optional(),
+
+    // Required: skill description (agentskills.io: ≤1024 chars)
+    description: z
+      .string()
+      .min(1, 'Skill description is required')
+      .max(1024, 'Skill description must be at most 1024 characters'),
+
+    gitRef: z.string().optional(),
 
     license: z.string().optional(),
 
-    // Required fields
-    name: z.string().min(1, 'Skill name is required'),
+    // Stored / edited names stay human-readable; import uses importedSkillManifestSchema
+    name: z
+      .string()
+      .min(1, 'Skill name is required')
+      .max(64, 'Skill name must be at most 64 characters'),
 
     permissions: z.array(z.string()).optional(),
 
@@ -32,6 +43,20 @@ export const skillManifestSchema = z
 
     // Optional fields
     version: z.string().optional(),
+  })
+  .passthrough();
+
+/** agentskills.io name: lowercase, digits, hyphens; 1–64 chars. Used on SKILL.md import only. */
+export const importedSkillManifestSchema = skillManifestSchema
+  .extend({
+    name: z
+      .string()
+      .min(1, 'Skill name is required')
+      .max(64, 'Skill name must be at most 64 characters')
+      .regex(
+        /^[a-z0-9](?:[a-z0-9-]{0,62}[a-z0-9])?$/,
+        'Skill name must be lowercase letters, numbers, and hyphens (not starting or ending with a hyphen)',
+      ),
   })
   .passthrough();
 
@@ -71,6 +96,11 @@ export interface ParsedZipSkill {
   content: string;
   manifest: SkillManifest;
   resources: Map<string, Buffer>;
+  /**
+   * Directory of this skill relative to the repo (or zip) root.
+   * Empty string when SKILL.md sits at the root.
+   */
+  skillDir?: string;
   /**
    * Repacked skill directory ZIP buffer (only when repackSkillZip=true)
    * Used for GitHub imports to store only the skill directory, not the full repo
@@ -178,4 +208,8 @@ export type SkillImportStatus = 'created' | 'updated' | 'unchanged';
 export interface SkillImportResult {
   skill: SkillItem;
   status: SkillImportStatus;
+}
+
+export interface SkillImportBatchResult {
+  results: SkillImportResult[];
 }

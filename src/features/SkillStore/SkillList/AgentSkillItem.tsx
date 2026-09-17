@@ -4,7 +4,7 @@ import { ActionIcon, Block, DropdownMenu, Flexbox, Icon, Modal, Tag } from '@lob
 import { SkillsIcon } from '@lobehub/ui/icons';
 import { App } from 'antd';
 import { createStaticStyles, cssVar } from 'antd-style';
-import { DownloadIcon, MoreVerticalIcon, PackageSearch, Trash2 } from 'lucide-react';
+import { DownloadIcon, MoreVerticalIcon, PackageSearch, RefreshCw, Trash2 } from 'lucide-react';
 import { lazy, memo, Suspense, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
@@ -45,11 +45,12 @@ interface AgentSkillItemProps {
 const AgentSkillItem = memo<AgentSkillItemProps>(({ skill }) => {
   const { t } = useTranslation('plugin');
   const { t: tc } = useTranslation('common');
-  const { modal } = App.useApp();
+  const { modal, message } = App.useApp();
   const [detailOpen, setDetailOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const deleteAgentSkill = useToolStore((s) => s.deleteAgentSkill);
+  const refreshAgentSkillFromSource = useToolStore((s) => s.refreshAgentSkillFromSource);
   // [enterprise-fork] 技能目录是组织级的，改/删走 skillAdminProcedure。
   // 普通用户不给入口，否则点下去只会吃一个 FORBIDDEN。
   const isAdmin = useIsAdmin();
@@ -68,6 +69,16 @@ const AgentSkillItem = memo<AgentSkillItemProps>(({ skill }) => {
     }
   };
 
+  const handleRefresh = async () => {
+    setLoading(true);
+    try {
+      await refreshAgentSkillFromSource(skill.id);
+      message.success(t('store.actions.refreshSuccess'));
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleDelete = () => {
     modal.confirm({
       centered: true,
@@ -79,6 +90,9 @@ const AgentSkillItem = memo<AgentSkillItemProps>(({ skill }) => {
       type: 'error',
     });
   };
+
+  const sourceUrl = typeof skill.manifest?.sourceUrl === 'string' ? skill.manifest.sourceUrl : '';
+  const canRefresh = isAdmin && sourceUrl.includes('github.com');
 
   return (
     <>
@@ -129,6 +143,16 @@ const AgentSkillItem = memo<AgentSkillItemProps>(({ skill }) => {
                   ...(isAdmin
                     ? [
                         ...(skill.zipFileHash ? [{ type: 'divider' as const }] : []),
+                        ...(canRefresh
+                          ? [
+                              {
+                                icon: <Icon icon={RefreshCw} />,
+                                key: 'refresh',
+                                label: t('store.actions.refresh'),
+                                onClick: handleRefresh,
+                              },
+                            ]
+                          : []),
                         {
                           danger: true,
                           icon: <Icon icon={Trash2} />,

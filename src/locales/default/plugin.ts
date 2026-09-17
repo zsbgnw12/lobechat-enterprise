@@ -632,6 +632,8 @@ export default {
   'store.actions.detail': 'Details',
   'store.actions.install': 'Install',
   'store.actions.manifest': 'Edit manifest',
+  'store.actions.refresh': 'Refresh from source',
+  'store.actions.refreshSuccess': 'Skill refreshed from source',
   'store.actions.settings': 'Settings',
   'store.actions.uninstall': 'Uninstall',
   'store.communityPlugin': 'Community',

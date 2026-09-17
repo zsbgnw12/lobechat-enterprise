@@ -65,6 +65,7 @@ const mockGitHubInstance = {
       return parts.join('-').toLowerCase();
     }),
   parseRepoUrl: vi.fn(),
+  resolveCommitSha: vi.fn().mockResolvedValue(undefined),
 };
 vi.mock('@/server/modules/GitHub', () => ({
   GitHub: vi.fn().mockImplementation(() => mockGitHubInstance),
@@ -76,6 +77,7 @@ vi.mock('@/server/modules/GitHub', () => ({
 const mockParserInstance = {
   parseSkillMd: vi.fn(),
   parseZipPackage: vi.fn(),
+  parseZipPackageAll: vi.fn(),
 };
 vi.mock('@/server/services/skill/parser', () => ({
   SkillParser: vi.fn().mockImplementation(() => mockParserInstance),
@@ -100,6 +102,12 @@ describe('Skill Router Integration Tests', () => {
       username: 'admin',
     });
     vi.mocked(resolveEnterpriseSkillOwnerId).mockImplementation(async (_db, uid) => uid);
+
+    mockParserInstance.parseZipPackageAll.mockImplementation(async (buffer, options) => {
+      const one = await mockParserInstance.parseZipPackage(buffer, options);
+      return [one];
+    });
+    mockGitHubInstance.resolveCommitSha.mockResolvedValue(undefined);
   });
 
   afterEach(async () => {
