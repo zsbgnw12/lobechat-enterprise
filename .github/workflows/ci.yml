@@ -29,7 +29,10 @@ jobs:
       - uses: actions/setup-node@v5
         with:
           node-version: ${{ env.NODE_VERSION }}
-          # no pnpm-lock.yaml in repo (gitignored) — skipping cache
+          # This repo has no pnpm-lock.yaml (.npmrc sets lockfile=false). setup-node v5
+          # enables package-manager-cache by default and hard-fails when the lockfile is
+          # missing, so it has to be turned off explicitly.
+          package-manager-cache: false
       - run: pnpm install --no-frozen-lockfile
 
   lint-ts:
@@ -44,7 +47,10 @@ jobs:
       - uses: actions/setup-node@v5
         with:
           node-version: ${{ env.NODE_VERSION }}
-          # no pnpm-lock.yaml in repo (gitignored) — skipping cache
+          # This repo has no pnpm-lock.yaml (.npmrc sets lockfile=false). setup-node v5
+          # enables package-manager-cache by default and hard-fails when the lockfile is
+          # missing, so it has to be turned off explicitly.
+          package-manager-cache: false
       - run: pnpm install --no-frozen-lockfile
       - run: pnpm run lint:ts
 
@@ -60,7 +66,10 @@ jobs:
       - uses: actions/setup-node@v5
         with:
           node-version: ${{ env.NODE_VERSION }}
-          # no pnpm-lock.yaml in repo (gitignored) — skipping cache
+          # This repo has no pnpm-lock.yaml (.npmrc sets lockfile=false). setup-node v5
+          # enables package-manager-cache by default and hard-fails when the lockfile is
+          # missing, so it has to be turned off explicitly.
+          package-manager-cache: false
       - run: pnpm install --no-frozen-lockfile
       # Root script uses --fix which mutates files; in CI we want check-only.
       - run: pnpm exec stylelint "{src,tests}/**/*.{js,jsx,ts,tsx}"
@@ -77,7 +86,10 @@ jobs:
       - uses: actions/setup-node@v5
         with:
           node-version: ${{ env.NODE_VERSION }}
-          # no pnpm-lock.yaml in repo (gitignored) — skipping cache
+          # This repo has no pnpm-lock.yaml (.npmrc sets lockfile=false). setup-node v5
+          # enables package-manager-cache by default and hard-fails when the lockfile is
+          # missing, so it has to be turned off explicitly.
+          package-manager-cache: false
       - run: pnpm install --no-frozen-lockfile
       - run: pnpm run type-check
 
