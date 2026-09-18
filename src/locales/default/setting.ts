@@ -160,6 +160,7 @@ export default {
   'agentSkillModal.descriptionPlaceholder': 'Briefly describe this skill',
   'agentSkillModal.github.desc':
     'Paste a GitHub repo or skill directory URL. A repo URL imports every top-level SKILL.md; a directory URL imports that skill only. Private repos need SKILL_GITHUB_TOKEN on the server.',
+  'agentSkillModal.github.recommended': 'Office document skills',
   'agentSkillModal.github.title': 'Import from GitHub',
   'agentSkillModal.github.urlPlaceholder':
     'https://github.com/username/repo or .../tree/main/skills/my-skill',

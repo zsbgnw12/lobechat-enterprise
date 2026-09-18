@@ -165,6 +165,7 @@
   "agentSkillModal.description": "描述",
   "agentSkillModal.descriptionPlaceholder": "简要描述该技能",
   "agentSkillModal.github.desc": "粘贴 GitHub 仓库或技能目录 URL。仓库 URL 会导入所有顶层 SKILL.md；目录 URL 只导入该技能。私有仓库需在服务端配置 SKILL_GITHUB_TOKEN。",
+  "agentSkillModal.github.recommended": "文档技能",
   "agentSkillModal.github.title": "从 GitHub 导入",
   "agentSkillModal.github.urlPlaceholder": "https://github.com/username/repo 或 .../tree/main/skills/my-skill",
   "agentSkillModal.importError": "导入失败：{{error}}",
