@@ -223,7 +223,7 @@
   "builtins.lobe-skill-store.render.installs": "安装次数",
   "builtins.lobe-skill-store.render.repository": "存储库",
   "builtins.lobe-skill-store.render.version": "版本",
-  "builtins.lobe-skill-store.title": "技能商店",
+  "builtins.lobe-skill-store.title": "技能目录",
   "builtins.lobe-skills.apiName.activateSkill": "激活技能",
   "builtins.lobe-skills.apiName.execScript": "执行脚本",
   "builtins.lobe-skills.apiName.exportFile": "导出文件",
@@ -629,7 +629,7 @@
   "store.tabs.installed": "已安装",
   "store.tabs.mcp": "MCP",
   "store.tabs.old": "超级运营中心 技能",
-  "store.title": "技能商店",
+  "store.title": "技能目录",
   "unknownError": "未知错误",
   "unknownPlugin": "未知技能"
 }

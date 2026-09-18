@@ -1,12 +1,8 @@
 import { Button, DropdownMenu, Flexbox, Icon, Text } from '@lobehub/ui';
 import { GithubIcon } from '@lobehub/ui/icons';
-import { ChevronDown, FileArchive, Grid2x2Plus, Link, PenLine } from 'lucide-react';
+import { ChevronDown, FileArchive, Grid2x2Plus, Link } from 'lucide-react';
 import { type ReactNode, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-
-import DevModal from '@/features/PluginDevModal';
-import { useAgentStore } from '@/store/agent';
-import { useToolStore } from '@/store/tool';
 
 import ImportFromGithubModal from './ImportFromGithubModal';
 import ImportFromUrlModal from './ImportFromUrlModal';
@@ -23,16 +19,9 @@ const MenuLabel = ({ desc, title }: { desc: string; title: ReactNode }) => (
 
 const AddSkillButton = () => {
   const { t } = useTranslation('setting');
-  const [showMcpModal, setMcpModal] = useState(false);
   const [showUrlModal, setUrlModal] = useState(false);
   const [showGithubModal, setGithubModal] = useState(false);
   const [showUploadModal, setUploadModal] = useState(false);
-
-  const [installCustomPlugin, updateNewDevPlugin] = useToolStore((s) => [
-    s.installCustomPlugin,
-    s.updateNewCustomPlugin,
-  ]);
-  const togglePlugin = useAgentStore((s) => s.togglePlugin);
 
   return (
     <div
@@ -40,15 +29,6 @@ const AddSkillButton = () => {
         e.stopPropagation();
       }}
     >
-      <DevModal
-        open={showMcpModal}
-        onOpenChange={setMcpModal}
-        onValueChange={updateNewDevPlugin}
-        onSave={async (devPlugin) => {
-          await installCustomPlugin(devPlugin);
-          await togglePlugin(devPlugin.identifier);
-        }}
-      />
       <ImportFromUrlModal open={showUrlModal} onOpenChange={setUrlModal} />
       <ImportFromGithubModal open={showGithubModal} onOpenChange={setGithubModal} />
       <UploadSkillModal open={showUploadModal} onOpenChange={setUploadModal} />
@@ -75,13 +55,6 @@ const AddSkillButton = () => {
             key: 'uploadZip',
             label: <MenuLabel desc={t('tab.uploadZip.desc')} title={t('tab.uploadZip')} />,
             onClick: () => setUploadModal(true),
-          },
-          { type: 'divider' as const },
-          {
-            icon: <Icon icon={PenLine} />,
-            key: 'customMcp',
-            label: <MenuLabel desc={t('tab.addCustomMcp.desc')} title={t('tab.addCustomMcp')} />,
-            onClick: () => setMcpModal(true),
           },
         ]}
       >

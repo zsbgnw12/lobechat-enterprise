@@ -14,6 +14,12 @@ interface ImportFromGithubModalProps {
   open: boolean;
 }
 
+const ANTHROPIC_OFFICE_SKILLS = [
+  { label: 'docx', url: 'https://github.com/anthropics/skills/tree/main/skills/docx' },
+  { label: 'pdf', url: 'https://github.com/anthropics/skills/tree/main/skills/pdf' },
+  { label: 'pptx', url: 'https://github.com/anthropics/skills/tree/main/skills/pptx' },
+] as const satisfies readonly { label: string; url: string }[];
+
 const ImportFromGithubModal = memo<ImportFromGithubModalProps>(({ open, onOpenChange }) => {
   const { t } = useTranslation(['setting', 'common']);
   const { message } = App.useApp();
@@ -44,8 +50,9 @@ const ImportFromGithubModal = memo<ImportFromGithubModalProps>(({ open, onOpenCh
           : t('agentSkillModal.importSuccess'),
       );
       handleClose();
-    } catch (err: any) {
-      setError(err?.message || String(err));
+    } catch (err: unknown) {
+      const errMessage = err instanceof Error ? err.message : String(err);
+      setError(errMessage);
     } finally {
       setLoading(false);
     }
@@ -90,6 +97,26 @@ const ImportFromGithubModal = memo<ImportFromGithubModalProps>(({ open, onOpenCh
               if (error) setError(null);
             }}
           />
+          <Flexbox gap={8}>
+            <Typography.Text type="secondary">
+              {t('agentSkillModal.github.recommended')}
+            </Typography.Text>
+            <Flexbox horizontal gap={8} wrap="wrap">
+              {ANTHROPIC_OFFICE_SKILLS.map((skill) => (
+                <Button
+                  disabled={loading}
+                  key={skill.label}
+                  size="small"
+                  onClick={() => {
+                    setUrl(skill.url);
+                    setError(null);
+                  }}
+                >
+                  {skill.label}
+                </Button>
+              ))}
+            </Flexbox>
+          </Flexbox>
         </Flexbox>
 
         <Button block loading={loading} type="primary" onClick={handleImport}>

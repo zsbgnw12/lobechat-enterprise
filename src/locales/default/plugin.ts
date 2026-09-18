@@ -224,7 +224,7 @@ export default {
   'builtins.lobe-skill-store.render.installs': 'Installs',
   'builtins.lobe-skill-store.render.repository': 'Repository',
   'builtins.lobe-skill-store.render.version': 'Version',
-  'builtins.lobe-skill-store.title': 'Skill Store',
+  'builtins.lobe-skill-store.title': 'Skill catalog',
   'builtins.lobe-skills.apiName.execScript': 'Run Script',
   'builtins.lobe-skills.apiName.exportFile': 'Export File',
   'builtins.lobe-skills.apiName.importFromMarket': 'Import from Market',
@@ -647,7 +647,7 @@ export default {
   'store.tabs.installed': 'Installed',
   'store.tabs.mcp': 'MCP',
   'store.tabs.old': '超级运营中心 Skills',
-  'store.title': 'Skill Store',
+  'store.title': 'Skill catalog',
   'unknownError': 'Unknown error',
   'unknownPlugin': 'Unknown Skill',
 };

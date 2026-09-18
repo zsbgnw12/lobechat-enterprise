@@ -160,6 +160,7 @@ export default {
   'agentSkillModal.descriptionPlaceholder': 'Briefly describe this skill',
   'agentSkillModal.github.desc':
     'Paste a GitHub repo or skill directory URL. A repo URL imports every top-level SKILL.md; a directory URL imports that skill only. Private repos need SKILL_GITHUB_TOKEN on the server.',
+  'agentSkillModal.github.recommended': 'Office document skills',
   'agentSkillModal.github.title': 'Import from GitHub',
   'agentSkillModal.github.urlPlaceholder':
     'https://github.com/username/repo or .../tree/main/skills/my-skill',
@@ -815,8 +816,9 @@ export default {
     'Select a voice for the current agent, different TTS services support different voices',
   'settingTTS.voice.preview': 'Voice Preview',
   'settingTTS.voice.title': 'Text-to-Speech Voice',
-  'skillStore.button': 'Skill Store',
-  'skillStore.empty': 'Browse the Skill store. Install one to get started, add more later.',
+  'skillStore.button': 'Skill catalog',
+  'skillStore.empty':
+    'No organization skills yet. An admin can import from GitHub, a URL, or a ZIP file.',
   'skillStore.emptySearch': 'No matching Skills',
   'skillStore.networkError': 'Network error, please try again',
   'skillStore.search': 'Search skills by name or keyword, press Enter to search…',
@@ -825,7 +827,7 @@ export default {
   'skillStore.tabs.lobehub': '超级运营中心',
   'skillStore.tabs.mcp': 'MCP',
   'skillStore.tabs.skills': 'Skills',
-  'skillStore.title': 'Skill Store',
+  'skillStore.title': 'Skill catalog',
   'skillStore.wantMore.action': 'Submit a request →',
   'skillStore.wantMore.feedback.message': `## Skill Name
 [Please fill in]
