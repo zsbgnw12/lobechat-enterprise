@@ -4,6 +4,8 @@ import { BlocksIcon } from 'lucide-react';
 import { memo } from 'react';
 import { useTranslation } from 'react-i18next';
 
+import { useIsAdmin } from '@/hooks/useEnterpriseRole';
+
 import AddSkillButton from './AddSkillButton';
 
 interface SkillEmptyProps extends Omit<EmptyProps, 'icon'> {
@@ -12,11 +14,12 @@ interface SkillEmptyProps extends Omit<EmptyProps, 'icon'> {
 
 const Empty = memo<SkillEmptyProps>(({ search, ...rest }) => {
   const { t } = useTranslation('setting');
+  const isAdmin = useIsAdmin();
 
   return (
     <Center height="100%" style={{ minHeight: '50vh' }} width="100%">
       <EmptyComponent
-        action={!search && <AddSkillButton />}
+        action={!search && isAdmin ? <AddSkillButton /> : undefined}
         description={search ? t('skillStore.emptySearch') : t('skillStore.empty')}
         icon={BlocksIcon}
         descriptionProps={{

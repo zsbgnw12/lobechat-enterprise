@@ -7,13 +7,9 @@ import { ChatInputProvider, DesktopChatInput } from '@/features/ChatInput';
 import { useAgentStore } from '@/store/agent';
 import { agentByIdSelectors } from '@/store/agent/selectors';
 import { useChatStore } from '@/store/chat';
-import { useGlobalStore } from '@/store/global';
-import { systemStatusSelectors } from '@/store/global/selectors';
 import { useHomeStore } from '@/store/home';
-import { serverConfigSelectors, useServerConfigStore } from '@/store/serverConfig';
 
 import ModeTag from './ModeTag';
-import SkillInstallBanner, { SKILL_INSTALL_BANNER_ID } from './SkillInstallBanner';
 import { useSend } from './useSend';
 
 // [enterprise-fork] 以下 import 已在注释掉的 JSX 里使用；保留 JSX 需要时恢复：
@@ -27,12 +23,6 @@ const leftActions: ActionKeys[] = ['model', 'search', 'fileUpload', 'tools'];
 const InputArea = () => {
   const { loading, send, inboxAgentId } = useSend();
   const inputActiveMode = useHomeStore((s) => s.inputActiveMode);
-  const isLobehubSkillEnabled = useServerConfigStore(serverConfigSelectors.enableLobehubSkill);
-  const isKlavisEnabled = useServerConfigStore(serverConfigSelectors.enableKlavis);
-  const isSkillBannerDismissed = useGlobalStore(
-    systemStatusSelectors.isBannerDismissed(SKILL_INSTALL_BANNER_ID),
-  );
-  const showSkillBanner = (isLobehubSkillEnabled || isKlavisEnabled) && !isSkillBannerDismissed;
   const chatInputRef = useRef<HTMLDivElement>(null);
 
   // When a starter mode is activated (e.g. Create Agent / Create Group / Write),
@@ -87,11 +77,7 @@ const InputArea = () => {
 
   return (
     <Flexbox gap={16} style={{ marginBottom: 16 }}>
-      <Flexbox
-        ref={chatInputRef}
-        style={{ paddingBottom: showSkillBanner ? 32 : 0, position: 'relative' }}
-      >
-        {showSkillBanner && <SkillInstallBanner />}
+      <Flexbox ref={chatInputRef} style={{ position: 'relative' }}>
         <DragUploadZone
           style={{ position: 'relative', zIndex: 1 }}
           onUploadFiles={handleUploadFiles}
