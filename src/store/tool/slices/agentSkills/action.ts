@@ -1,6 +1,7 @@
 import {
   type CreateSkillInput,
   type ImportGitHubInput,
+  type ImportSkillHubInput,
   type ImportUrlInput,
   type ImportZipInput,
   type SkillImportResult,
@@ -85,6 +86,14 @@ export class AgentSkillsActionImpl {
     params: ImportGitHubInput,
   ): Promise<{ results: SkillImportResult[] } | undefined> => {
     const result = await agentSkillService.importGitHubSkills(params);
+    await this.#get().refreshAgentSkills();
+    return result;
+  };
+
+  importAgentSkillFromSkillHub = async (
+    params: ImportSkillHubInput,
+  ): Promise<{ results: SkillImportResult[] } | undefined> => {
+    const result = await agentSkillService.importSkillHubSkills(params);
     await this.#get().refreshAgentSkills();
     return result;
   };

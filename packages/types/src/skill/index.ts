@@ -189,6 +189,11 @@ export interface ImportGitHubInput {
   gitUrl: string;
 }
 
+export interface ImportSkillHubInput {
+  slug: string;
+  version?: string;
+}
+
 export interface ImportUrlInput {
   url: string;
 }

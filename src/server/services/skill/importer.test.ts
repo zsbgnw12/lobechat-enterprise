@@ -46,6 +46,21 @@ vi.mock('@/server/modules/GitHub', () => ({
   },
 }));
 
+const mockSkillHubInstance = {
+  configured: true,
+  downloadZip: vi.fn(),
+  registryOrigin: 'https://skillhub.example',
+};
+vi.mock('@/server/services/skillHub/client', () => ({
+  SkillHubClient: vi.fn().mockImplementation(() => mockSkillHubInstance),
+  SkillHubNotConfiguredError: class SkillHubNotConfiguredError extends Error {
+    constructor() {
+      super('SkillHub is not configured. Set SKILLHUB_URL on the server.');
+      this.name = 'SkillHubNotConfiguredError';
+    }
+  },
+}));
+
 const mockParserInstance = {
   parseSkillMd: vi.fn(),
   parseZipPackage: vi.fn(),
@@ -103,6 +118,9 @@ describe('SkillImporter', () => {
       return [one];
     });
     mockGitHubInstance.resolveCommitSha.mockResolvedValue(undefined);
+    mockSkillHubInstance.configured = true;
+    mockSkillHubInstance.registryOrigin = 'https://skillhub.example';
+    mockSkillHubInstance.downloadZip.mockReset();
   });
 
   afterEach(async () => {
@@ -1213,6 +1231,63 @@ description: A nested skill
 
       // Clean up other user
       await db.delete(users).where(eq(users.id, otherUserId));
+    });
+  });
+
+  describe('importFromSkillHub', () => {
+    it('should import a skill from a SkillHub zip package', async () => {
+      mockSkillHubInstance.downloadZip.mockResolvedValue(Buffer.from('skillhub-zip'));
+      mockParserInstance.parseZipPackage.mockResolvedValue({
+        content: '# SkillHub content',
+        manifest: { description: 'From SkillHub', name: 'skillhub-docx' },
+        resources: new Map(),
+        skillZipBuffer: Buffer.from('repacked'),
+        zipHash: `skillhub-hash-${Date.now()}`,
+      });
+
+      const result = await importer.importFromSkillHub({ slug: 'office--docx' });
+
+      expect(result.status).toBe('created');
+      expect(result.skill.identifier).toBe('skillhub-office-docx');
+      expect(result.skill.source).toBe('user');
+      expect(result.skill.manifest).toMatchObject({
+        skillHubSlug: 'office--docx',
+        sourceUrl: 'https://skillhub.example/skills/office--docx',
+      });
+      expect(mockSkillHubInstance.downloadZip).toHaveBeenCalledWith('office--docx', undefined);
+    });
+
+    it('should delegate GitHub-hosted SkillHub packages to GitHub import', async () => {
+      mockSkillHubInstance.downloadZip.mockRejectedValue(
+        new Error(
+          'SkillHub returned a GitHub-hosted package. Import from GitHub instead: https://github.com/anthropics/skills/tree/main/skills/docx',
+        ),
+      );
+      mockGitHubInstance.parseRepoUrl.mockReturnValue({
+        branch: 'main',
+        owner: 'anthropics',
+        path: 'skills/docx',
+        repo: 'skills',
+      });
+      mockGitHubInstance.downloadRepoZip.mockResolvedValue(Buffer.from('github-zip'));
+      mockParserInstance.parseZipPackage.mockResolvedValue({
+        content: '# docx',
+        manifest: { description: 'Word', name: 'docx' },
+        resources: new Map(),
+        zipHash: `handoff-hash-${Date.now()}`,
+      });
+
+      const result = await importer.importFromSkillHub({ slug: 'docx' });
+
+      expect(result.status).toBe('created');
+      expect(mockGitHubInstance.downloadRepoZip).toHaveBeenCalled();
+    });
+
+    it('should reject import when SkillHub is not configured', async () => {
+      mockSkillHubInstance.configured = false;
+      await expect(importer.importFromSkillHub({ slug: 'docx' })).rejects.toMatchObject({
+        code: 'INVALID_URL',
+      });
     });
   });
 });

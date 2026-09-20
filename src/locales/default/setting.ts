@@ -164,6 +164,12 @@ export default {
   'agentSkillModal.github.title': 'Import from GitHub',
   'agentSkillModal.github.urlPlaceholder':
     'https://github.com/username/repo or .../tree/main/skills/my-skill',
+  'agentSkillModal.skillHub.desc':
+    'Search a self-hosted SkillHub registry and import the package into the organization catalog. Requires SKILLHUB_URL on the server.',
+  'agentSkillModal.skillHub.searchPlaceholder': 'Search SkillHub skills…',
+  'agentSkillModal.skillHub.slug': 'Slug',
+  'agentSkillModal.skillHub.slugPlaceholder': 'namespace--skill-name',
+  'agentSkillModal.skillHub.title': 'Import from SkillHub',
   'agentSkillModal.importError': 'Import failed: {{error}}',
   'agentSkillModal.importSuccess': 'Agent Skill imported successfully',
   'agentSkillModal.importSuccessCount': '{{count}} skills imported successfully',
@@ -965,6 +971,8 @@ When I am ___, I need ___
   'tab.image': 'Image Generation',
   'tab.importFromGithub': 'Import from GitHub',
   'tab.importFromGithub.desc': 'Import from a GitHub repository (public, or private with a token)',
+  'tab.importFromSkillHub': 'Import from SkillHub',
+  'tab.importFromSkillHub.desc': 'Import a versioned package from the organization SkillHub',
   'tab.importFromUrl': 'Import from URL',
   'tab.importFromUrl.desc': 'Import via a direct link to SKILL.md',
   'tab.llm': 'Language Model',

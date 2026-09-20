@@ -17,6 +17,7 @@ import {
   SkillResourceError,
   SkillResourceService,
 } from '@/server/services/skill';
+import { SkillHubClient } from '@/server/services/skillHub/client';
 
 const PUBLIC_SKILL_MARKET_DISABLED =
   'Public skill market is disabled. Import from GitHub, URL, or ZIP instead.';
@@ -186,6 +187,65 @@ export const agentSkillsRouter = router({
         return { results };
       } catch (error) {
         handleSkillImportError(error);
+      }
+    }),
+
+  importFromSkillHub: skillAdminProcedure
+    .input(
+      z.object({
+        slug: z
+          .string()
+          .min(1)
+          .max(128)
+          .regex(/^[A-Z0-9][\w.-]{0,127}$/i),
+        version: z.string().max(64).optional(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      try {
+        return await ctx.skillImporter.importFromSkillHub(input);
+      } catch (error) {
+        handleSkillImportError(error);
+      }
+    }),
+
+  importSkillHubSkills: skillAdminProcedure
+    .input(
+      z.object({
+        slug: z
+          .string()
+          .min(1)
+          .max(128)
+          .regex(/^[A-Z0-9][\w.-]{0,127}$/i),
+        version: z.string().max(64).optional(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      try {
+        const results = await ctx.skillImporter.importSkillHubSkills(input);
+        return { results };
+      } catch (error) {
+        handleSkillImportError(error);
+      }
+    }),
+
+  searchSkillHub: skillAdminProcedure
+    .input(z.object({ query: z.string().min(1).max(200) }))
+    .query(async ({ input }) => {
+      const client = new SkillHubClient();
+      if (!client.configured) {
+        throw new TRPCError({
+          code: 'PRECONDITION_FAILED',
+          message: 'SkillHub is not configured. Set SKILLHUB_URL on the server.',
+        });
+      }
+      try {
+        return { data: await client.search(input.query) };
+      } catch (error) {
+        throw new TRPCError({
+          code: 'BAD_GATEWAY',
+          message: (error as Error).message,
+        });
       }
     }),
 
