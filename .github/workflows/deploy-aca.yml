@@ -103,6 +103,8 @@ jobs:
           AZURE_STORAGE_CONNECTION_STRING: ${{ secrets.AZURE_STORAGE_CONNECTION_STRING }}
           AZURE_STORAGE_CONTAINER: ${{ secrets.AZURE_STORAGE_CONTAINER }}
           SKILL_GITHUB_TOKEN: ${{ secrets.SKILL_GITHUB_TOKEN }}
+          SKILLHUB_URL: ${{ secrets.SKILLHUB_URL }}
+          SKILLHUB_TOKEN: ${{ secrets.SKILLHUB_TOKEN }}
           IMAGE_TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.skip_build && inputs.image_tag || github.sha }}
         run: |
           set -euo pipefail
@@ -139,6 +141,13 @@ jobs:
             if [ -n "${SKILL_GITHUB_TOKEN:-}" ]; then
               SECRET_ARGS+=("skill-github-token=$SKILL_GITHUB_TOKEN")
               ENV_ARGS+=("SKILL_GITHUB_TOKEN=secretref:skill-github-token")
+            fi
+            if [ -n "${SKILLHUB_URL:-}" ]; then
+              ENV_ARGS+=("SKILLHUB_URL=$SKILLHUB_URL")
+            fi
+            if [ -n "${SKILLHUB_TOKEN:-}" ]; then
+              SECRET_ARGS+=("skillhub-token=$SKILLHUB_TOKEN")
+              ENV_ARGS+=("SKILLHUB_TOKEN=secretref:skillhub-token")
             fi
             if [ "${#SECRET_ARGS[@]}" -gt 0 ]; then
               az containerapp secret set \

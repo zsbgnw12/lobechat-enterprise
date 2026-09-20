@@ -1,10 +1,13 @@
 import { Button, DropdownMenu, Flexbox, Icon, Text } from '@lobehub/ui';
 import { GithubIcon } from '@lobehub/ui/icons';
-import { ChevronDown, FileArchive, Grid2x2Plus, Link } from 'lucide-react';
+import { ChevronDown, FileArchive, Grid2x2Plus, Library, Link } from 'lucide-react';
 import { type ReactNode, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
+import { serverConfigSelectors, useServerConfigStore } from '@/store/serverConfig';
+
 import ImportFromGithubModal from './ImportFromGithubModal';
+import ImportFromSkillHubModal from './ImportFromSkillHubModal';
 import ImportFromUrlModal from './ImportFromUrlModal';
 import UploadSkillModal from './UploadSkillModal';
 
@@ -19,8 +22,11 @@ const MenuLabel = ({ desc, title }: { desc: string; title: ReactNode }) => (
 
 const AddSkillButton = () => {
   const { t } = useTranslation('setting');
+  // [enterprise-fork] SkillHub 入口仅在服务端配置了 SKILLHUB_URL 后出现
+  const enableSkillHub = useServerConfigStore(serverConfigSelectors.enableSkillHub);
   const [showUrlModal, setUrlModal] = useState(false);
   const [showGithubModal, setGithubModal] = useState(false);
+  const [showSkillHubModal, setSkillHubModal] = useState(false);
   const [showUploadModal, setUploadModal] = useState(false);
 
   return (
@@ -31,6 +37,7 @@ const AddSkillButton = () => {
     >
       <ImportFromUrlModal open={showUrlModal} onOpenChange={setUrlModal} />
       <ImportFromGithubModal open={showGithubModal} onOpenChange={setGithubModal} />
+      <ImportFromSkillHubModal open={showSkillHubModal} onOpenChange={setSkillHubModal} />
       <UploadSkillModal open={showUploadModal} onOpenChange={setUploadModal} />
       <DropdownMenu
         nativeButton={false}
@@ -50,6 +57,21 @@ const AddSkillButton = () => {
             ),
             onClick: () => setGithubModal(true),
           },
+          ...(enableSkillHub
+            ? [
+                {
+                  icon: <Icon icon={Library} />,
+                  key: 'importSkillHub',
+                  label: (
+                    <MenuLabel
+                      desc={t('tab.importFromSkillHub.desc')}
+                      title={t('tab.importFromSkillHub')}
+                    />
+                  ),
+                  onClick: () => setSkillHubModal(true),
+                },
+              ]
+            : []),
           {
             icon: <Icon icon={FileArchive} />,
             key: 'uploadZip',

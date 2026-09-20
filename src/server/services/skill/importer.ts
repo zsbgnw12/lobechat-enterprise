@@ -4,6 +4,7 @@ import { type LobeChatDatabase } from '@lobechat/database';
 import {
   type CreateSkillInput,
   type ImportGitHubInput,
+  type ImportSkillHubInput,
   type ImportUrlInput,
   type ImportZipInput,
   type SkillImportResult,
@@ -16,6 +17,7 @@ import { AgentSkillModel } from '@/database/models/agentSkill';
 import type { GitHubRepoInfo } from '@/server/modules/GitHub';
 import { GitHub, GitHubNotFoundError, GitHubParseError } from '@/server/modules/GitHub';
 import { FileService } from '@/server/services/file';
+import { SkillHubClient, SkillHubNotConfiguredError } from '@/server/services/skillHub/client';
 
 import { SkillImportError, SkillManifestError } from './errors';
 import { SkillParser } from './parser';
@@ -29,6 +31,7 @@ export class SkillImporter {
   private resourceService: SkillResourceService;
   private fileService: FileService;
   private github: GitHub;
+  private skillHub: SkillHubClient;
   private userId: string;
 
   constructor(db: LobeChatDatabase, userId: string) {
@@ -37,6 +40,7 @@ export class SkillImporter {
     this.resourceService = new SkillResourceService(db, userId);
     this.fileService = new FileService(db, userId);
     this.github = new GitHub({ userAgent: 'heihub-skill-importer' });
+    this.skillHub = new SkillHubClient();
     this.userId = userId;
   }
 
@@ -219,6 +223,138 @@ export class SkillImporter {
   }
 
   /**
+   * Import one or more skills from a self-hosted SkillHub / ClawHub registry.
+   * [enterprise-fork]
+   */
+  async importFromSkillHub(input: ImportSkillHubInput): Promise<SkillImportResult> {
+    const results = await this.importSkillHubSkills(input);
+    if (results.length === 0) {
+      throw new SkillImportError('SKILL.md not found in SkillHub package', 'NOT_FOUND');
+    }
+    return results[0];
+  }
+
+  async importSkillHubSkills(input: ImportSkillHubInput): Promise<SkillImportResult[]> {
+    if (!this.skillHub.configured) {
+      throw new SkillImportError(
+        'SkillHub is not configured. Set SKILLHUB_URL on the server.',
+        'INVALID_URL',
+      );
+    }
+
+    let zipBuffer: Buffer;
+    try {
+      zipBuffer = await this.skillHub.downloadZip(input.slug, input.version);
+    } catch (error) {
+      if (error instanceof SkillHubNotConfiguredError) {
+        throw new SkillImportError(error.message, 'INVALID_URL');
+      }
+      const message = (error as Error).message;
+      const gitUrl = message.match(/https:\/\/github\.com\/\S+/)?.[0];
+      if (gitUrl) {
+        log('importFromSkillHub: GitHub-hosted package, delegating to importFromGitHub %s', gitUrl);
+        return this.importGitHubSkills({ gitUrl });
+      }
+      if (message.includes('not found')) {
+        throw new SkillImportError(message, 'NOT_FOUND');
+      }
+      throw new SkillImportError(
+        `Failed to download SkillHub package: ${message}`,
+        'DOWNLOAD_FAILED',
+      );
+    }
+
+    const parsedSkills = await this.parser.parseZipPackageAll(zipBuffer, {
+      repackSkillZip: true,
+    });
+    if (parsedSkills.length === 0) {
+      throw new SkillImportError('SKILL.md not found in SkillHub package', 'NOT_FOUND');
+    }
+
+    const results: SkillImportResult[] = [];
+    for (const parsed of parsedSkills) {
+      results.push(
+        await this.upsertSkillHubSkill({ parsed, slug: input.slug, version: input.version }),
+      );
+    }
+    return results;
+  }
+
+  private async upsertSkillHubSkill(input: {
+    parsed: {
+      content: string;
+      manifest: SkillManifest;
+      resources: Map<string, Buffer>;
+      skillDir?: string;
+      skillZipBuffer?: Buffer;
+      zipHash?: string;
+    };
+    slug: string;
+    version?: string;
+  }): Promise<SkillImportResult> {
+    const { parsed, slug, version } = input;
+    const { manifest, content, resources, zipHash, skillZipBuffer } = parsed;
+    const identifier = `skillhub-${slug.toLowerCase().replaceAll(/[^a-z0-9]+/g, '-')}`;
+    const existing = await this.skillModel.findByIdentifier(identifier);
+    if (existing && existing.zipFileHash === zipHash && existing.content != null) {
+      return { skill: existing, status: 'unchanged' };
+    }
+
+    const resourceIds = zipHash
+      ? await this.resourceService.storeResources(zipHash, resources)
+      : {};
+    const sourceUrl = `${this.skillHub.registryOrigin}/skills/${encodeURIComponent(slug)}`;
+    const fullManifest: SkillManifest = {
+      ...manifest,
+      ...(version ? { version } : {}),
+      skillHubSlug: slug,
+      sourceUrl,
+    };
+
+    let zipFileHash: string | undefined;
+    if (zipHash && skillZipBuffer) {
+      const zipKey = `skills/zip/${zipHash}.zip`;
+      await this.fileService.uploadBuffer(zipKey, skillZipBuffer, 'application/zip');
+      await this.fileService.createGlobalFile({
+        fileHash: zipHash,
+        fileType: 'application/zip',
+        metadata: {
+          dirname: 'skills/zip',
+          filename: `${zipHash}.zip`,
+          path: zipKey,
+        },
+        size: skillZipBuffer.length,
+        url: zipKey,
+      });
+      zipFileHash = zipHash;
+    }
+
+    if (existing) {
+      const skill = await this.skillModel.update(existing.id, {
+        content,
+        description: manifest.description,
+        manifest: fullManifest,
+        name: manifest.name,
+        resources: resourceIds,
+        zipFileHash,
+      });
+      return { skill, status: 'updated' };
+    }
+
+    const skill = await this.skillModel.create({
+      content,
+      description: manifest.description,
+      identifier,
+      manifest: fullManifest,
+      name: manifest.name,
+      resources: resourceIds,
+      source: 'user',
+      zipFileHash,
+    });
+    return { skill, status: 'created' };
+  }
+
+  /**
    * Re-import a skill from the GitHub URL stored on its manifest.
    */
   async refreshFromSource(skillId: string): Promise<SkillImportResult> {
@@ -229,6 +365,11 @@ export class SkillImporter {
 
     const sourceUrl =
       typeof skill.manifest?.sourceUrl === 'string' ? skill.manifest.sourceUrl : undefined;
+    const skillHubSlug =
+      typeof skill.manifest?.skillHubSlug === 'string' ? skill.manifest.skillHubSlug : undefined;
+    if (skillHubSlug) {
+      return this.importFromSkillHub({ slug: skillHubSlug, version: skill.manifest.version });
+    }
     if (!sourceUrl?.includes('github.com')) {
       throw new SkillImportError('Skill has no GitHub source to refresh from', 'INVALID_URL');
     }

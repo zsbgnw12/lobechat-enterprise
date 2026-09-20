@@ -10,6 +10,7 @@ import { knowledgeEnv } from '@/envs/knowledge';
 import { langfuseEnv } from '@/envs/langfuse';
 import { parseSSOProviders } from '@/libs/better-auth/utils/server';
 import { parseSystemAgent } from '@/server/globalConfig/parseSystemAgent';
+import { isSkillHubConfigured } from '@/server/services/skillHub/client';
 import { type GlobalServerConfig } from '@/types/serverConfig';
 import { cleanObject } from '@/utils/object';
 
@@ -83,6 +84,7 @@ export const getServerGlobalConfig = async () => {
     enableMarketTrustedClient: !!(
       appEnv.MARKET_TRUSTED_CLIENT_SECRET && appEnv.MARKET_TRUSTED_CLIENT_ID
     ),
+    enableSkillHub: isSkillHubConfigured(),
     enableUploadFileToServer: !!fileEnv.S3_SECRET_ACCESS_KEY,
 
     // Expose Agent Gateway URL to client when queue-based agent runtime is enabled

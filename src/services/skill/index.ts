@@ -1,6 +1,7 @@
 import type {
   CreateSkillInput,
   ImportGitHubInput,
+  ImportSkillHubInput,
   ImportUrlInput,
   ImportZipInput,
   SkillImportResult,
@@ -31,6 +32,18 @@ class AgentSkillService {
     params: ImportGitHubInput,
   ): Promise<{ results: SkillImportResult[] } | undefined> {
     return lambdaClient.agentSkills.importGitHubSkills.mutate(params);
+  }
+
+  async importSkillHubSkills(
+    params: ImportSkillHubInput,
+  ): Promise<{ results: SkillImportResult[] } | undefined> {
+    return lambdaClient.agentSkills.importSkillHubSkills.mutate(params);
+  }
+
+  async searchSkillHub(
+    query: string,
+  ): Promise<{ data: { description?: string; name: string; slug: string; version?: string }[] }> {
+    return lambdaClient.agentSkills.searchSkillHub.query({ query });
   }
 
   async refreshFromSource(id: string): Promise<SkillImportResult | undefined> {

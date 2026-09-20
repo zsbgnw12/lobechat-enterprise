@@ -16,7 +16,8 @@ enterprise/
 │   ├── super-ops-api.md           Super Ops（销售系统）API
 │   └── gongdan-api.md             工单系统 API（原「工单接口.md」）
 ├── operations/
-│   └── secrets.md                 生产密钥清单与轮换说明
+│   ├── secrets.md                 生产密钥清单与轮换说明
+│   └── skillhub.md                可选的 SkillHub 旁挂说明
 └── upstream-lobechat-readme.md    上游 LobeChat 原始 README 归档
 ```
 
@@ -28,6 +29,7 @@ enterprise/
 | 改代码（人或 AI）         | 仓库根 [`CLAUDE.md`](../CLAUDE.md)                                      |
 | 改 gongdan / 上游工具适配 | [`integrations/`](integrations/) 下对应那份                             |
 | 轮换密钥、排查配置缺失    | [`operations/secrets.md`](operations/secrets.md)                        |
+| 旁挂 SkillHub 注册中心    | [`operations/skillhub.md`](operations/skillhub.md)                      |
 | 查上游原生能力怎么用      | [`upstream-lobechat-readme.md`](upstream-lobechat-readme.md) 或 `docs/` |
 
 ## 约定
