@@ -92,7 +92,9 @@ const AgentSkillItem = memo<AgentSkillItemProps>(({ skill }) => {
   };
 
   const sourceUrl = typeof skill.manifest?.sourceUrl === 'string' ? skill.manifest.sourceUrl : '';
-  const canRefresh = isAdmin && sourceUrl.includes('github.com');
+  const skillHubSlug =
+    typeof skill.manifest?.skillHubSlug === 'string' ? skill.manifest.skillHubSlug : '';
+  const canRefresh = isAdmin && (Boolean(skillHubSlug) || sourceUrl.includes('github.com'));
 
   return (
     <>

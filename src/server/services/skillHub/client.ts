@@ -1,3 +1,4 @@
+import type { SkillHubSearchHit } from '@lobechat/types';
 import debug from 'debug';
 
 // [enterprise-fork] ClawHub-compatible client for a self-hosted SkillHub registry.
@@ -6,18 +7,13 @@ const log = debug('lobe-chat:service:skillhub');
 const DEFAULT_API_BASE = '/api/v1';
 const REQUEST_TIMEOUT_MS = 30_000;
 
+export type { SkillHubSearchHit } from '@lobechat/types';
+
 export class SkillHubNotConfiguredError extends Error {
   constructor() {
     super('SkillHub is not configured. Set SKILLHUB_URL on the server.');
     this.name = 'SkillHubNotConfiguredError';
   }
-}
-
-export interface SkillHubSearchHit {
-  description?: string;
-  name: string;
-  slug: string;
-  version?: string;
 }
 
 export const isSkillHubConfigured = () => Boolean(process.env.SKILLHUB_URL?.trim());
@@ -148,6 +144,22 @@ export class SkillHubClient {
     const response = await withTimeout(url, { headers: this.headers('application/json') });
     if (!response.ok) {
       throw new Error(`SkillHub search failed: ${response.status} ${response.statusText}`);
+    }
+
+    return extractHits(await response.json());
+  }
+
+  async list(limit = 50): Promise<SkillHubSearchHit[]> {
+    const apiBase = await this.resolveApiBase();
+    const url = new URL(`${apiBase}/skills`);
+    const safeLimit = Math.min(100, Math.max(1, Math.floor(limit)));
+    url.searchParams.set('limit', String(safeLimit));
+    url.searchParams.set('sort', 'updated');
+
+    log('list: %s', url.toString());
+    const response = await withTimeout(url, { headers: this.headers('application/json') });
+    if (!response.ok) {
+      throw new Error(`SkillHub list failed: ${response.status} ${response.statusText}`);
     }
 
     return extractHits(await response.json());
