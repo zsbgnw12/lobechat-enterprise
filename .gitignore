@@ -158,5 +158,6 @@ apps/desktop/resources/cli-package.json
 .env.pilot
 .env.auth
 .env.local
+enterprise/operations/skillhub/.runtime/
 .openapi.json
 laobchat.bmp
