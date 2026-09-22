@@ -357,7 +357,9 @@ export class SkillImporter {
     const { parsed, slug, version } = input;
     const { manifest, content, resources, zipHash, skillZipBuffer } = parsed;
     const identifier = `skillhub-${slug.toLowerCase().replaceAll(/[^a-z0-9]+/g, '-')}`;
-    const existing = await this.skillModel.findByIdentifier(identifier);
+    const existing =
+      (await this.skillModel.findByIdentifier(identifier)) ??
+      (await this.skillModel.findByName(manifest.name));
     if (existing && existing.zipFileHash === zipHash && existing.content != null) {
       return { skill: existing, status: 'unchanged' };
     }
@@ -459,7 +461,9 @@ export class SkillImporter {
     const identifier = this.github.generateIdentifier(repoInfo);
     log('importFromGitHub: identifier=%s', identifier);
 
-    const existing = await this.skillModel.findByIdentifier(identifier);
+    const existing =
+      (await this.skillModel.findByIdentifier(identifier)) ??
+      (await this.skillModel.findByName(manifest.name));
     if (existing && existing.zipFileHash === zipHash && existing.content != null) {
       log(
         'importFromGitHub: skill unchanged (same zipHash=%s), skipping update id=%s',

@@ -728,7 +728,7 @@
   "settingTTS.voice.preview": "试听声源",
   "settingTTS.voice.title": "语音合成声源",
   "skillStore.button": "技能目录",
-  "skillStore.empty": "组织技能目录还是空的。管理员可以从 GitHub、URL、ZIP 或 SkillHub 导入。",
+  "skillStore.empty": "组织技能目录还是空的。管理员可点「添加 → 安装组织 SOP」，或从 GitHub、URL、ZIP、SkillHub 导入。",
   "skillStore.emptySearch": "未找到匹配的技能",
   "skillStore.networkError": "网络错误，请重试",
   "skillStore.search": "搜索技能名称或关键词，按回车键搜索…",

@@ -936,6 +936,39 @@ describe('SkillImporter', () => {
         undefined,
       );
     });
+
+    it('updates an existing skill with the same name instead of conflicting', async () => {
+      const created = await importer.createUserSkill({
+        content: '# local SOP',
+        description: 'Local SOP',
+        name: 'org-ticket-followup',
+      });
+
+      mockGitHubInstance.parseRepoUrl.mockReturnValue({
+        branch: 'main',
+        owner: 'zsbgnw12',
+        path: 'enterprise/skills/org-ticket-followup',
+        repo: 'lobechat-enterprise',
+      });
+      mockGitHubInstance.downloadRepoZip.mockResolvedValue(Buffer.from('mock-zip'));
+      mockParserInstance.parseZipPackage.mockResolvedValue({
+        content: '# github SOP',
+        manifest: { description: 'GitHub SOP', name: 'org-ticket-followup' },
+        resources: new Map(),
+        skillDir: 'enterprise/skills/org-ticket-followup',
+        zipHash: `name-collision-${Date.now()}`,
+      });
+
+      const result = await importer.importFromGitHub({
+        gitUrl:
+          'https://github.com/zsbgnw12/lobechat-enterprise/tree/main/enterprise/skills/org-ticket-followup',
+      });
+
+      expect(result.status).toBe('updated');
+      expect(result.skill.id).toBe(created.id);
+      expect(result.skill.identifier).toBe(created.identifier);
+      expect(result.skill.content).toBe('# github SOP');
+    });
   });
 
   describe('importFromUrl', () => {

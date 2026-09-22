@@ -1,9 +1,14 @@
 // @vitest-environment node
 import { join } from 'node:path';
 
-import { describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { listBundledSkillDirs, zipSkillDir } from './bundled';
+import {
+  ensureBundledOrgSkillsInstalled,
+  listBundledSkillDirs,
+  resetBundledOrgSkillsAutoInstall,
+  zipSkillDir,
+} from './bundled';
 import { SkillParser } from './parser';
 
 describe('bundled org skills', () => {
@@ -22,5 +27,38 @@ describe('bundled org skills', () => {
     expect(parsed.manifest.description).toContain('工单跟进');
     expect(parsed.resources.has('references/reply-template.md')).toBe(true);
     expect(parsed.resources.has('references/status-map.md')).toBe(true);
+  });
+});
+
+describe('ensureBundledOrgSkillsInstalled', () => {
+  beforeEach(() => {
+    resetBundledOrgSkillsAutoInstall();
+  });
+
+  it('runs install once when called concurrently', async () => {
+    const install = vi.fn(async () => {
+      await new Promise((resolve) => {
+        setTimeout(resolve, 20);
+      });
+    });
+
+    await Promise.all([
+      ensureBundledOrgSkillsInstalled(install),
+      ensureBundledOrgSkillsInstalled(install),
+    ]);
+
+    expect(install).toHaveBeenCalledTimes(1);
+  });
+
+  it('retries after a failed install', async () => {
+    const install = vi
+      .fn()
+      .mockRejectedValueOnce(new Error('boom'))
+      .mockResolvedValueOnce(undefined);
+
+    await expect(ensureBundledOrgSkillsInstalled(install)).rejects.toThrow('boom');
+    await ensureBundledOrgSkillsInstalled(install);
+
+    expect(install).toHaveBeenCalledTimes(2);
   });
 });

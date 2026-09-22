@@ -14,9 +14,9 @@
 
 ## 怎么装进目录
 
-管理员打开 **设置 → 技能目录 → 添加**：
+管理员打开 **设置 → 技能目录** 时会自动把镜像里的 SOP 写入组织目录（已存在则按内容更新）。也可以手动：
 
-1. **安装组织 SOP**（推荐）：把本镜像里的 `enterprise/skills` 直接写入组织目录，不依赖 GitHub。
+1. **安装组织 SOP**：把本镜像里的 `enterprise/skills` 再写一遍组织目录，不依赖 GitHub。
 2. **ZIP**：把某个技能目录打成 zip，保证根目录有 `SKILL.md`。可用同目录 `pack.ps1`。
 3. **GitHub**：合进 `main` 后可用\
    `https://github.com/zsbgnw12/lobechat-enterprise/tree/main/enterprise/skills/org-ticket-followup`\
