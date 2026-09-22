@@ -48,8 +48,16 @@ jobs:
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
 
+      # `az acr login` uses a short-lived AAD token. This image takes ~50–60 min
+      # to build; push then fails with oauth2/token EOF (run 35705335712).
+      # ACR admin user/password stays valid for the whole job (deploy already uses it).
       - name: Login to ACR
-        run: az acr login --name $ACR_NAME
+        run: |
+          set -euo pipefail
+          az acr update -n "$ACR_NAME" --admin-enabled true >/dev/null
+          ACR_USER=$(az acr credential show -n "$ACR_NAME" --query username -o tsv)
+          ACR_PW=$(az acr credential show -n "$ACR_NAME" --query 'passwords[0].value' -o tsv)
+          echo "$ACR_PW" | docker login "${ACR_NAME}.azurecr.io" -u "$ACR_USER" --password-stdin
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v4
@@ -62,13 +70,15 @@ jobs:
           context: .
           file: Dockerfile
           push: true
+          provenance: false
+          sbom: false
           tags: |
             ${{ env.ACR_NAME }}.azurecr.io/${{ env.IMAGE_NAME }}:${{ github.sha }}
             ${{ env.ACR_NAME }}.azurecr.io/${{ env.IMAGE_NAME }}:latest
           build-args: |
             USE_CN_MIRROR=true
           cache-from: type=registry,ref=${{ env.ACR_NAME }}.azurecr.io/${{ env.IMAGE_NAME }}:buildcache
-          cache-to: type=registry,ref=${{ env.ACR_NAME }}.azurecr.io/${{ env.IMAGE_NAME }}:buildcache,mode=max
+          cache-to: type=registry,ref=${{ env.ACR_NAME }}.azurecr.io/${{ env.IMAGE_NAME }}:buildcache,mode=max,ignore-error=true
           platforms: linux/amd64
 
   deploy:
