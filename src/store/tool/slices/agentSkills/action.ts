@@ -121,6 +121,12 @@ export class AgentSkillsActionImpl {
     return result;
   };
 
+  importBundledOrgSkills = async (): Promise<{ results: SkillImportResult[] } | undefined> => {
+    const result = await agentSkillService.importBundledOrgSkills();
+    await this.#get().refreshAgentSkills();
+    return result;
+  };
+
   refreshAgentSkills = async (): Promise<void> => {
     const { data } = await agentSkillService.list();
     this.#set({ agentSkills: data }, false, n('refreshAgentSkills'));

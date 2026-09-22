@@ -45,6 +45,9 @@ e2e/playwright-report
 docs
 *.md
 README*
+# [enterprise-fork] keep organization SOP SKILL.md packages for in-image install
+!enterprise/skills/
+!enterprise/skills/**
 
 # Legacy gateway (deleted but make sure)
 gateway

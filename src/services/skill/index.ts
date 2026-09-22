@@ -58,6 +58,10 @@ class AgentSkillService {
     return lambdaClient.agentSkills.importFromZip.mutate(params);
   }
 
+  async importBundledOrgSkills(): Promise<{ results: SkillImportResult[] } | undefined> {
+    return lambdaClient.agentSkills.importBundledOrgSkills.mutate();
+  }
+
   async importFromMarket(identifier: string): Promise<SkillImportResult | undefined> {
     return lambdaClient.agentSkills.importFromMarket.mutate({ identifier });
   }

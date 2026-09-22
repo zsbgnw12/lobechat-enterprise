@@ -281,6 +281,16 @@ export const agentSkillsRouter = router({
       }
     }),
 
+  // [enterprise-fork] 管理员一键把镜像自带的组织 SOP 装进目录
+  importBundledOrgSkills: skillAdminProcedure.mutation(async ({ ctx }) => {
+    try {
+      const results = await ctx.skillImporter.importBundledOrgSkills();
+      return { results };
+    } catch (error) {
+      handleSkillImportError(error);
+    }
+  }),
+
   importFromMarket: skillAdminProcedure
     .input(z.object({ identifier: z.string() }))
     .mutation(async () => {
