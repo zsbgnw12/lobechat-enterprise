@@ -230,7 +230,7 @@ export const agentSkillsRouter = router({
     }),
 
   searchSkillHub: skillAdminProcedure
-    .input(z.object({ query: z.string().min(1).max(200) }))
+    .input(z.object({ query: z.string().max(200).optional() }))
     .query(async ({ input }) => {
       const client = new SkillHubClient();
       if (!client.configured) {
@@ -240,7 +240,9 @@ export const agentSkillsRouter = router({
         });
       }
       try {
-        return { data: await client.search(input.query) };
+        const query = input.query?.trim();
+        const data = query ? await client.search(query) : await client.list();
+        return { data };
       } catch (error) {
         throw new TRPCError({
           code: 'BAD_GATEWAY',

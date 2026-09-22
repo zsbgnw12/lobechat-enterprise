@@ -53,6 +53,30 @@ describe('SkillHubClient', () => {
     );
   });
 
+  it('lists skills via ClawHub /api/v1/skills', async () => {
+    fetchMock
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ apiBase: '/api/v1' }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          skills: [{ slug: 'office--xlsx', displayName: 'xlsx', summary: 'Excel files' }],
+        }),
+      });
+
+    const client = new SkillHubClient();
+    const hits = await client.list();
+
+    expect(hits).toEqual([
+      { description: 'Excel files', name: 'xlsx', slug: 'office--xlsx', version: undefined },
+    ]);
+    expect(String(fetchMock.mock.calls[1][0])).toBe(
+      'https://skillhub.example/api/v1/skills?limit=50&sort=updated',
+    );
+  });
+
   it('downloads zip bytes and sends the bearer token', async () => {
     vi.stubEnv('SKILLHUB_TOKEN', 'sk_test');
     fetchMock

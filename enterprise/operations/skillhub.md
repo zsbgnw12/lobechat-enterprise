@@ -4,13 +4,14 @@
 
 ## 本仓做什么
 
-配了 `SKILLHUB_URL` 之后，管理员在技能目录「添加」里会出现 **从 SkillHub 导入**：
+配了 `SKILLHUB_URL` 之后，管理员在技能目录里会多出 **SkillHub** 页，并可在「添加」里看到 **从 SkillHub 导入**：
 
-1. 用 ClawHub 兼容接口搜索 `GET {apiBase}/search?q=`
+1. 浏览 `GET {apiBase}/skills`，或搜索 `GET {apiBase}/search?q=`
 2. 下载 `GET {apiBase}/download?slug=`
 3. 解析 `SKILL.md` 后写入组织目录（和 GitHub / ZIP 同一条导入链）
+4. 已导入且带 `skillHubSlug` 的技能可以「从源刷新」
 
-未配置时入口不出现，不影响现有 GitHub / URL / ZIP 导入。
+未配置时入口不出现，技能目录仍只有组织列表，不影响现有 GitHub / URL / ZIP 导入。
 
 ## 怎么起 SkillHub
 
@@ -34,6 +35,6 @@ GitHub Secrets（可选）：
 | `SKILLHUB_URL`   | 明文 `SKILLHUB_URL`        |
 | `SKILLHUB_TOKEN` | `secretref:skillhub-token` |
 
-合进 `main` 后的 ACA 部署会带上这两项。配好后强制刷新，添加菜单里才会出现 SkillHub。
+合进 `main` 后的 ACA 部署会带上这两项。配好后强制刷新，技能目录才会出现 SkillHub 页和导入入口。
 
 工单 / 客户等真实 API 仍走 chat-gw，不要做成 SkillHub 技能包里的 HTTP 说明。

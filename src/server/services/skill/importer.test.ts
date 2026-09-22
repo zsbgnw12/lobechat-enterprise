@@ -1257,6 +1257,34 @@ description: A nested skill
       expect(mockSkillHubInstance.downloadZip).toHaveBeenCalledWith('office--docx', undefined);
     });
 
+    it('should refresh a SkillHub-imported skill from its stored slug', async () => {
+      mockSkillHubInstance.downloadZip.mockResolvedValue(Buffer.from('skillhub-zip'));
+      mockParserInstance.parseZipPackage.mockResolvedValue({
+        content: '# v1',
+        manifest: { description: 'From SkillHub', name: 'skillhub-docx' },
+        resources: new Map(),
+        skillZipBuffer: Buffer.from('repacked'),
+        zipHash: `skillhub-refresh-${Date.now()}`,
+      });
+
+      const created = await importer.importFromSkillHub({ slug: 'office--docx' });
+      expect(created.status).toBe('created');
+
+      mockSkillHubInstance.downloadZip.mockResolvedValue(Buffer.from('skillhub-zip-v2'));
+      mockParserInstance.parseZipPackage.mockResolvedValue({
+        content: '# v2',
+        manifest: { description: 'From SkillHub', name: 'skillhub-docx' },
+        resources: new Map(),
+        skillZipBuffer: Buffer.from('repacked-v2'),
+        zipHash: `skillhub-refresh-v2-${Date.now()}`,
+      });
+
+      const refreshed = await importer.refreshFromSource(created.skill.id);
+      expect(refreshed.status).toBe('updated');
+      expect(refreshed.skill.content).toBe('# v2');
+      expect(mockSkillHubInstance.downloadZip).toHaveBeenLastCalledWith('office--docx', undefined);
+    });
+
     it('should delegate GitHub-hosted SkillHub packages to GitHub import', async () => {
       mockSkillHubInstance.downloadZip.mockRejectedValue(
         new Error(

@@ -4,6 +4,7 @@ import {
   type ImportSkillHubInput,
   type ImportUrlInput,
   type ImportZipInput,
+  type SkillHubSearchHit,
   type SkillImportResult,
   type SkillItem,
   type SkillListItem,
@@ -182,6 +183,16 @@ export class AgentSkillsActionImpl {
         },
         revalidateOnFocus: false,
       },
+    );
+
+  useFetchSkillHubSkills = (enabled: boolean, query?: string): SWRResponse<SkillHubSearchHit[]> =>
+    useClientDataSWR<SkillHubSearchHit[]>(
+      enabled ? ['fetchSkillHubSkills', query?.trim() || ''].join('-') : null,
+      async () => {
+        const { data } = await agentSkillService.searchSkillHub(query);
+        return data;
+      },
+      { revalidateOnFocus: false },
     );
 }
 

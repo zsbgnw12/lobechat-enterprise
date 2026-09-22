@@ -4,6 +4,7 @@ import type {
   ImportSkillHubInput,
   ImportUrlInput,
   ImportZipInput,
+  SkillHubSearchHit,
   SkillImportResult,
   SkillItem,
   SkillListItem,
@@ -40,10 +41,9 @@ class AgentSkillService {
     return lambdaClient.agentSkills.importSkillHubSkills.mutate(params);
   }
 
-  async searchSkillHub(
-    query: string,
-  ): Promise<{ data: { description?: string; name: string; slug: string; version?: string }[] }> {
-    return lambdaClient.agentSkills.searchSkillHub.query({ query });
+  async searchSkillHub(query?: string): Promise<{ data: SkillHubSearchHit[] }> {
+    const trimmed = query?.trim();
+    return lambdaClient.agentSkills.searchSkillHub.query(trimmed ? { query: trimmed } : {});
   }
 
   async refreshFromSource(id: string): Promise<SkillImportResult | undefined> {

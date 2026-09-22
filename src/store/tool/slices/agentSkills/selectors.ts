@@ -25,6 +25,11 @@ const isAgentSkill =
   (s: ToolStoreState): boolean =>
     (s.agentSkills || []).some((skill) => skill.identifier === identifier);
 
+const isSkillHubSkillInstalled =
+  (slug: string) =>
+  (s: ToolStoreState): boolean =>
+    (s.agentSkills || []).some((skill) => skill.manifest?.skillHubSlug === slug);
+
 const agentSkillMetaList = (s: ToolStoreState): LobeToolMeta[] =>
   (s.agentSkills || []).map((skill) => {
     const author = skill.manifest?.author;
@@ -50,4 +55,5 @@ export const agentSkillsSelectors = {
   getMarketAgentSkills,
   getUserAgentSkills,
   isAgentSkill,
+  isSkillHubSkillInstalled,
 };

@@ -37,6 +37,9 @@ export const skillManifestSchema = z
     // e.g. https://github.com/lobehub/skills
     repository: z.string().url().optional(),
 
+    // SkillHub registry slug when imported from a ClawHub-compatible registry
+    skillHubSlug: z.string().optional(),
+
     // Source URL where the skill was imported from
     // e.g. https://github.com/lobehub/skills/tree/main/code-review or https://example.com/skill.md
     sourceUrl: z.string().url().optional(),
@@ -190,6 +193,13 @@ export interface ImportGitHubInput {
 }
 
 export interface ImportSkillHubInput {
+  slug: string;
+  version?: string;
+}
+
+export interface SkillHubSearchHit {
+  description?: string;
+  name: string;
   slug: string;
   version?: string;
 }
