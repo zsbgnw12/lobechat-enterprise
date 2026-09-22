@@ -20,6 +20,13 @@ const ANTHROPIC_OFFICE_SKILLS = [
   { label: 'pptx', url: 'https://github.com/anthropics/skills/tree/main/skills/pptx' },
 ] as const satisfies readonly { label: string; url: string }[];
 
+const ORG_SOP_SKILLS = [
+  {
+    label: 'org-ticket-followup',
+    url: 'https://github.com/zsbgnw12/lobechat-enterprise/tree/main/enterprise/skills/org-ticket-followup',
+  },
+] as const satisfies readonly { label: string; url: string }[];
+
 const ImportFromGithubModal = memo<ImportFromGithubModalProps>(({ open, onOpenChange }) => {
   const { t } = useTranslation(['setting', 'common']);
   const { message } = App.useApp();
@@ -103,6 +110,26 @@ const ImportFromGithubModal = memo<ImportFromGithubModalProps>(({ open, onOpenCh
             </Typography.Text>
             <Flexbox horizontal gap={8} wrap="wrap">
               {ANTHROPIC_OFFICE_SKILLS.map((skill) => (
+                <Button
+                  disabled={loading}
+                  key={skill.label}
+                  size="small"
+                  onClick={() => {
+                    setUrl(skill.url);
+                    setError(null);
+                  }}
+                >
+                  {skill.label}
+                </Button>
+              ))}
+            </Flexbox>
+          </Flexbox>
+          <Flexbox gap={8}>
+            <Typography.Text type="secondary">
+              {t('agentSkillModal.github.orgSkills')}
+            </Typography.Text>
+            <Flexbox horizontal gap={8} wrap="wrap">
+              {ORG_SOP_SKILLS.map((skill) => (
                 <Button
                   disabled={loading}
                   key={skill.label}
