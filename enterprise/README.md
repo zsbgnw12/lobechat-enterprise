@@ -17,7 +17,8 @@ enterprise/
 │   └── gongdan-api.md             工单系统 API（原「工单接口.md」）
 ├── operations/
 │   ├── secrets.md                 生产密钥清单与轮换说明
-│   └── skillhub.md                可选的 SkillHub 旁挂说明
+│   ├── skillhub.md                可选的 SkillHub 旁挂说明
+│   └── skillhub/                  独立拉起启动器（不内嵌 Java）
 └── upstream-lobechat-readme.md    上游 LobeChat 原始 README 归档
 ```
 

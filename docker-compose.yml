@@ -60,6 +60,9 @@ services:
       # Feature-flag trim: disable non-enterprise UI entry points.
       # "-name" turns a flag OFF; see src/config/featureFlags/schema.ts for the full list.
       FEATURE_FLAGS: ${FEATURE_FLAGS:--market,-check_updates,-welcome_suggest,-cloud_promotion,-changelog,-agent_onboarding,+commercial_hide_github,+commercial_hide_docs}
+      # Optional SkillHub sidecar. Empty keeps the catalog on the org list only.
+      SKILLHUB_URL: ${SKILLHUB_URL:-}
+      SKILLHUB_TOKEN: ${SKILLHUB_TOKEN:-}
     ports:
       - '${WEB_PORT:-3010}:3210'
 
