@@ -161,6 +161,7 @@ export default {
   'agentSkillModal.github.desc':
     'Paste a GitHub repo or skill directory URL. A repo URL imports every top-level SKILL.md; a directory URL imports that skill only. Private repos need SKILL_GITHUB_TOKEN on the server.',
   'agentSkillModal.github.recommended': 'Office document skills',
+  'agentSkillModal.github.orgSkills': 'Organization SOP',
   'agentSkillModal.github.title': 'Import from GitHub',
   'agentSkillModal.github.urlPlaceholder':
     'https://github.com/username/repo or .../tree/main/skills/my-skill',
@@ -824,7 +825,7 @@ export default {
   'settingTTS.voice.title': 'Text-to-Speech Voice',
   'skillStore.button': 'Skill catalog',
   'skillStore.empty':
-    'No organization skills yet. An admin can import from GitHub, a URL, or a ZIP file.',
+    'No organization skills yet. An admin can import from GitHub, a URL, a ZIP file, or SkillHub.',
   'skillStore.emptySearch': 'No matching Skills',
   'skillStore.networkError': 'Network error, please try again',
   'skillStore.search': 'Search skills by name or keyword, press Enter to search…',

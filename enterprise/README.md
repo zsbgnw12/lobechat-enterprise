@@ -19,6 +19,7 @@ enterprise/
 │   ├── secrets.md                 生产密钥清单与轮换说明
 │   ├── skillhub.md                可选的 SkillHub 旁挂说明
 │   └── skillhub/                  独立拉起启动器（不内嵌 Java）
+├── skills/                        组织 SOP 技能包（SKILL.md，装进技能目录）
 └── upstream-lobechat-readme.md    上游 LobeChat 原始 README 归档
 ```
 
@@ -31,6 +32,7 @@ enterprise/
 | 改 gongdan / 上游工具适配 | [`integrations/`](integrations/) 下对应那份                             |
 | 轮换密钥、排查配置缺失    | [`operations/secrets.md`](operations/secrets.md)                        |
 | 旁挂 SkillHub 注册中心    | [`operations/skillhub.md`](operations/skillhub.md)                      |
+| 组织 SOP 技能包           | [`skills/`](skills/)                                                    |
 | 查上游原生能力怎么用      | [`upstream-lobechat-readme.md`](upstream-lobechat-readme.md) 或 `docs/` |
 
 ## 约定
