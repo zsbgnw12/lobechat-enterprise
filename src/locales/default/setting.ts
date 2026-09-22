@@ -974,6 +974,9 @@ When I am ___, I need ___
   'tab.experiment': 'Experiment',
   'tab.hotkey': 'Hotkeys',
   'tab.image': 'Image Generation',
+  'tab.importBundledOrgSkills': 'Install organization SOP',
+  'tab.importBundledOrgSkills.desc':
+    'Install ticket-followup and other SOP skills shipped with this image',
   'tab.importFromGithub': 'Import from GitHub',
   'tab.importFromGithub.desc': 'Import from a GitHub repository (public, or private with a token)',
   'tab.importFromSkillHub': 'Import from SkillHub',

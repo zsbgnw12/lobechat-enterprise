@@ -125,6 +125,8 @@ COPY --from=builder /deps/node_modules/drizzle-orm /app/node_modules/drizzle-orm
 # Copy server launcher and shared scripts
 COPY --from=builder /app/scripts/serverLauncher/startServer.js /app/startServer.js
 COPY --from=builder /app/scripts/_shared /app/scripts/_shared
+# [enterprise-fork] Organization SOP SKILL.md packages for in-app install
+COPY --from=builder /app/enterprise/skills /app/enterprise/skills
 
 RUN set -e && \
     addgroup -S -g 1001 nodejs && \

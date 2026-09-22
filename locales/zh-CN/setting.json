@@ -847,6 +847,8 @@
   "tab.experiment": "实验",
   "tab.hotkey": "快捷键",
   "tab.image": "绘画服务",
+  "tab.importBundledOrgSkills": "安装组织 SOP",
+  "tab.importBundledOrgSkills.desc": "把镜像自带的工单跟进等说明书装进目录",
   "tab.importFromGithub": "从 GitHub 导入",
   "tab.importFromGithub.desc": "从 GitHub 仓库导入（公开仓库，或配置了令牌的私有仓库）",
   "tab.importFromSkillHub": "从 SkillHub 导入",

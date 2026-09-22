@@ -19,6 +19,7 @@ import { GitHub, GitHubNotFoundError, GitHubParseError } from '@/server/modules/
 import { FileService } from '@/server/services/file';
 import { SkillHubClient, SkillHubNotConfiguredError } from '@/server/services/skillHub/client';
 
+import { listBundledSkillDirs, zipSkillDir } from './bundled';
 import { SkillImportError, SkillManifestError } from './errors';
 import { SkillParser } from './parser';
 import { SkillResourceService } from './resource';
@@ -144,6 +145,67 @@ export class SkillImporter {
       cleanup();
       log('importFromZip: cleaned up temp file');
     }
+  }
+
+  /**
+   * [enterprise-fork] Import SKILL.md packages shipped in enterprise/skills (copied into the image).
+   */
+  async importBundledOrgSkills(): Promise<SkillImportResult[]> {
+    const dirs = await listBundledSkillDirs();
+    if (dirs.length === 0) {
+      throw new SkillImportError('No bundled organization skills found', 'NOT_FOUND');
+    }
+
+    const results: SkillImportResult[] = [];
+    for (const dir of dirs) {
+      const zipBuffer = await zipSkillDir(dir);
+      const { manifest, content, resources, zipHash } = await this.parser.parseZipPackage(
+        zipBuffer,
+        { repackSkillZip: true },
+      );
+      const existingByName = await this.skillModel.findByName(manifest.name);
+      const identifier = existingByName?.identifier || manifest.name;
+
+      if (
+        existingByName &&
+        existingByName.zipFileHash === zipHash &&
+        existingByName.content != null
+      ) {
+        results.push({ skill: existingByName, status: 'unchanged' });
+        continue;
+      }
+
+      const resourceIds = zipHash
+        ? await this.resourceService.storeResources(zipHash, resources)
+        : {};
+
+      if (existingByName) {
+        const skill = await this.skillModel.update(existingByName.id, {
+          content,
+          description: manifest.description,
+          manifest,
+          name: manifest.name,
+          resources: resourceIds,
+          zipFileHash: zipHash,
+        });
+        results.push({ skill, status: 'updated' });
+        continue;
+      }
+
+      const skill = await this.skillModel.create({
+        content,
+        description: manifest.description,
+        identifier,
+        manifest,
+        name: manifest.name,
+        resources: resourceIds,
+        source: 'user',
+        zipFileHash: zipHash,
+      });
+      results.push({ skill, status: 'created' });
+    }
+
+    return results;
   }
 
   /**
