@@ -10,6 +10,7 @@ import { requireEnterpriseAdmin, serverDatabase } from '@/libs/trpc/lambda/middl
 import { resolveEnterpriseSkillOwnerId } from '@/server/services/enterpriseRole';
 import { FileService } from '@/server/services/file';
 import {
+  ensureBundledOrgSkillsInstalled,
   SkillImporter,
   SkillImportError,
   SkillManifestError,
@@ -309,6 +310,13 @@ export const agentSkillsRouter = router({
         .optional(),
     )
     .query(async ({ ctx, input }) => {
+      // [enterprise-fork] 打开目录时把镜像自带 SOP 装进管理员 vault，失败不挡列表
+      try {
+        await ensureBundledOrgSkillsInstalled(() => ctx.skillImporter.importBundledOrgSkills());
+      } catch (error) {
+        console.error('[enterprise-fork] auto-install bundled org skills failed', error);
+      }
+
       if (input?.source) {
         return ctx.skillModel.listBySource(input.source);
       }

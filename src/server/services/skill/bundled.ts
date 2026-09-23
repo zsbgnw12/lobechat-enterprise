@@ -60,3 +60,22 @@ export const zipSkillDir = async (dir: string) => {
 
   return zipFiles(files);
 };
+
+let autoInstall: Promise<unknown> | undefined;
+
+/** Reset in-process auto-install latch (tests only). */
+export const resetBundledOrgSkillsAutoInstall = () => {
+  autoInstall = undefined;
+};
+
+/**
+ * [enterprise-fork] Install image-bundled SOP once per process.
+ * Concurrent callers share the same promise; a failure clears the latch so the next list retries.
+ */
+export const ensureBundledOrgSkillsInstalled = async (install: () => Promise<unknown>) => {
+  autoInstall ??= install().catch((error) => {
+    autoInstall = undefined;
+    throw error;
+  });
+  return autoInstall;
+};

@@ -825,7 +825,7 @@ export default {
   'settingTTS.voice.title': 'Text-to-Speech Voice',
   'skillStore.button': 'Skill catalog',
   'skillStore.empty':
-    'No organization skills yet. An admin can import from GitHub, a URL, a ZIP file, or SkillHub.',
+    'No organization skills yet. An admin can use Add → Install organization SOP, or import from GitHub, a URL, a ZIP file, or SkillHub.',
   'skillStore.emptySearch': 'No matching Skills',
   'skillStore.networkError': 'Network error, please try again',
   'skillStore.search': 'Search skills by name or keyword, press Enter to search…',
