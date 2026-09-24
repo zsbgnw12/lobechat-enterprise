@@ -8,9 +8,11 @@
 
 ## 现有技能
 
-| 目录                                           | 用途                     |
-| ---------------------------------------------- | ------------------------ |
-| [`org-ticket-followup/`](org-ticket-followup/) | 工单跟进、催单、关单口径 |
+| 目录                                           | 用途                       |
+| ---------------------------------------------- | -------------------------- |
+| [`org-ticket-followup/`](org-ticket-followup/) | 工单跟进、催单、关单口径   |
+| [`org-customer-lookup/`](org-customer-lookup/) | 客户编号核对、挂工单口径   |
+| [`org-sales-followup/`](org-sales-followup/)   | 销售分配、配额、商机池口径 |
 
 ## 怎么装进目录
 

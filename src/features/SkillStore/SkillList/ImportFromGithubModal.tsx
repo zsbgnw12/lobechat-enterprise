@@ -25,6 +25,14 @@ const ORG_SOP_SKILLS = [
     label: 'org-ticket-followup',
     url: 'https://github.com/zsbgnw12/lobechat-enterprise/tree/main/enterprise/skills/org-ticket-followup',
   },
+  {
+    label: 'org-customer-lookup',
+    url: 'https://github.com/zsbgnw12/lobechat-enterprise/tree/main/enterprise/skills/org-customer-lookup',
+  },
+  {
+    label: 'org-sales-followup',
+    url: 'https://github.com/zsbgnw12/lobechat-enterprise/tree/main/enterprise/skills/org-sales-followup',
+  },
 ] as const satisfies readonly { label: string; url: string }[];
 
 const ImportFromGithubModal = memo<ImportFromGithubModalProps>(({ open, onOpenChange }) => {
